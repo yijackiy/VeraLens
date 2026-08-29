@@ -38,6 +38,16 @@ def _load_model():
     return _model
 
 
+def unload_model():
+    """Frees the classifier's GPU memory before the LLM is loaded (see fusion pipeline's sequential-loading pattern)."""
+    global _model
+    if _model is not None:
+        del _model
+        _model = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
 def classify(face_crop_bgr: np.ndarray) -> dict:
     """
     face_crop_bgr: HxWx3 BGR uint8 numpy array (output of face_pipeline).

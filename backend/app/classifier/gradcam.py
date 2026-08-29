@@ -20,6 +20,14 @@ def _get_cam():
     return _cam
 
 
+def unload_cam():
+    """Releases the CAM's hooks on the classifier before it is unloaded."""
+    global _cam
+    if _cam is not None:
+        _cam.activations_and_grads.release()
+        _cam = None
+
+
 def get_heatmap(face_crop_bgr: np.ndarray) -> np.ndarray:
     """
     face_crop_bgr: HxWx3 BGR uint8 numpy array (same input as classifier.classify()).
