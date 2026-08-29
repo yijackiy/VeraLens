@@ -1,0 +1,38 @@
+# VeraLens — Python dependencies (Step 0.3)
+# Install PyTorch first, from the CUDA 12.4 index, or pip resolves to CPU wheels:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# --- Inference pipeline ---
+torch
+torchvision
+transformers>=4.57.0
+accelerate
+bitsandbytes
+timm                        # EfficientNet-B4 weights
+grad-cam                    # pytorch-grad-cam
+insightface
+onnxruntime-gpu
+opencv-python
+pillow
+
+# --- Backend ---
+fastapi
+uvicorn[standard]
+python-multipart
+
+# --- Data ---
+datasets
+huggingface_hub
+
+# --- Evaluation: metrics ---
+nltk
+rouge-score
+scikit-learn
+matplotlib
+
+# --- Evaluation: judge layer (eval-only, never in the inference path) ---
+google-genai                # Gemini 2.5 Flash judge
+sqlalchemy                  # append-only score storage
+psycopg[binary]             # Postgres driver (Neon/Supabase)
+tenacity                    # retry with exponential backoff + jitter
+python-dotenv               # loads .env; secrets never live in config files

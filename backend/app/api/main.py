@@ -21,6 +21,19 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.get("/health")
+def health():
+    """
+    Step 4.5 — cheap liveness probe for the keep-alive cron.
+
+    Deliberately dependency-free: no model load, no DB round-trip. Free-tier
+    hosts spin down after ~15 min idle and take ~1 min to wake, so a ping every
+    10 minutes keeps the demo from opening on a loading screen. A handler that
+    touched the pipeline would defeat the point.
+    """
+    return {"status": "ok"}
+
+
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
     suffix = os.path.splitext(file.filename)[1]
