@@ -1,0 +1,356 @@
+{
+  "total_errors": 70,
+  "listed": 50,
+  "errors": [
+    {
+      "path": "data/deepfake_faces/fake/train_1720_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.00206,
+      "error_margin": 0.49794
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1911_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.003776,
+      "error_margin": 0.496224
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_00299.jpg",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.005069,
+      "error_margin": 0.494931
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1853_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.005096,
+      "error_margin": 0.494904
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1900_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.00704,
+      "error_margin": 0.49296
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_857_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.010354,
+      "error_margin": 0.489646
+    },
+    {
+      "path": "data/deepfake_faces/real/train_134_3.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.988371,
+      "error_margin": 0.488371
+    },
+    {
+      "path": "data/deepfake_faces/real/train_45129.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.988227,
+      "error_margin": 0.488227
+    },
+    {
+      "path": "data/deepfake_faces/real/train_10162.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.982524,
+      "error_margin": 0.482524
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_539_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.018002,
+      "error_margin": 0.481998
+    },
+    {
+      "path": "data/deepfake_faces/real/train_1021_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.980218,
+      "error_margin": 0.480218
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_13592447708_black_male_face_face_only_face_close-up_face_close-_7659c635-1ad5-418c-ab37-3c430b04d8d4.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.022218,
+      "error_margin": 0.477782
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_02679.jpg",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.022664,
+      "error_margin": 0.477336
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1716_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.023732,
+      "error_margin": 0.476268
+    },
+    {
+      "path": "data/deepfake_faces/fake/test_000000_x_0_780.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.03794,
+      "error_margin": 0.46206
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_910_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.041688,
+      "error_margin": 0.458312
+    },
+    {
+      "path": "data/deepfake_faces/real/train_61266.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.956418,
+      "error_margin": 0.456418
+    },
+    {
+      "path": "data/deepfake_faces/real/train_1108_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.949094,
+      "error_margin": 0.449094
+    },
+    {
+      "path": "data/deepfake_faces/real/train_959.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.944567,
+      "error_margin": 0.444567
+    },
+    {
+      "path": "data/deepfake_faces/real/train_24101.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.943328,
+      "error_margin": 0.443328
+    },
+    {
+      "path": "data/deepfake_faces/real/train_1180_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.938581,
+      "error_margin": 0.438581
+    },
+    {
+      "path": "data/deepfake_faces/real/train_18417.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.937568,
+      "error_margin": 0.437568
+    },
+    {
+      "path": "data/deepfake_faces/real/train_1244_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.933362,
+      "error_margin": 0.433362
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_637_2.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.067464,
+      "error_margin": 0.432536
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1641_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.077601,
+      "error_margin": 0.422399
+    },
+    {
+      "path": "data/deepfake_faces/fake/val_034 (1).png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.083908,
+      "error_margin": 0.416092
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_554_3.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.093249,
+      "error_margin": 0.406751
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1518_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.119497,
+      "error_margin": 0.380503
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_20301.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.121035,
+      "error_margin": 0.378965
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_972_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.131753,
+      "error_margin": 0.368247
+    },
+    {
+      "path": "data/deepfake_faces/real/train_908_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.856045,
+      "error_margin": 0.356045
+    },
+    {
+      "path": "data/deepfake_faces/real/train_59490.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.853384,
+      "error_margin": 0.353384
+    },
+    {
+      "path": "data/deepfake_faces/real/train_49963.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.831636,
+      "error_margin": 0.331636
+    },
+    {
+      "path": "data/deepfake_faces/fake/test_000000_x_0_784.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.171698,
+      "error_margin": 0.328302
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_14239.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.197035,
+      "error_margin": 0.302965
+    },
+    {
+      "path": "data/deepfake_faces/real/train_27008.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.797227,
+      "error_margin": 0.297227
+    },
+    {
+      "path": "data/deepfake_faces/real/train_31461.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.787551,
+      "error_margin": 0.287551
+    },
+    {
+      "path": "data/deepfake_faces/fake/test_000000_x_0_894.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.225835,
+      "error_margin": 0.274165
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_122_7.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.226495,
+      "error_margin": 0.273505
+    },
+    {
+      "path": "data/deepfake_faces/real/train_414_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.772868,
+      "error_margin": 0.272868
+    },
+    {
+      "path": "data/deepfake_faces/real/train_54015.jpg",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.765877,
+      "error_margin": 0.265877
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1124_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.290554,
+      "error_margin": 0.209446
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_132_11.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.310432,
+      "error_margin": 0.189568
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_1054_1.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.322545,
+      "error_margin": 0.177455
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_382_2.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.327307,
+      "error_margin": 0.172693
+    },
+    {
+      "path": "data/deepfake_faces/real/train_1066_1.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.672348,
+      "error_margin": 0.172348
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_13592447708_Clean_East_Asian_male_face_face_only_shown_face_clo_f93e2224-9af5-40b5-8510-364fb844878a.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.339734,
+      "error_margin": 0.160266
+    },
+    {
+      "path": "data/deepfake_faces/real/train_110_9.png",
+      "true_label": "real",
+      "predicted": "fake",
+      "fake_probability": 0.65246,
+      "error_margin": 0.15246
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_109_11.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.362372,
+      "error_margin": 0.137628
+    },
+    {
+      "path": "data/deepfake_faces/fake/train_401_6.png",
+      "true_label": "fake",
+      "predicted": "real",
+      "fake_probability": 0.366777,
+      "error_margin": 0.133223
+    }
+  ]
+}

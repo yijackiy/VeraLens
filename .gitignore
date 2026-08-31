@@ -2,7 +2,7 @@ venv/
 __pycache__/
 *.pt
 *.pth
-data/
+/data/
 node_modules/
 .env
 backend/static/

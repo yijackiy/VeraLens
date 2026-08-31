@@ -1,0 +1,125 @@
+{
+  "sample": {
+    "requested": 400,
+    "scored": 400,
+    "seed": 1337,
+    "split": "validation",
+    "stratified": true
+  },
+  "note": "The reasoning layer ran blind (no classifier score in its prompt) so LLM-Only and Fused measure an independent signal.",
+  "arms": {
+    "vision_only": {
+      "n_samples": 400,
+      "threshold": 0.5,
+      "accuracy": 0.9775,
+      "auc_roc": 0.9982500000000001,
+      "macro_f1": 0.9774987343038046,
+      "per_class": {
+        "real": {
+          "precision": 0.9704433497536946,
+          "recall": 0.985,
+          "f1": 0.9776674937965261,
+          "support": 200
+        },
+        "fake": {
+          "precision": 0.9847715736040609,
+          "recall": 0.97,
+          "f1": 0.9773299748110831,
+          "support": 200
+        }
+      },
+      "confusion_matrix": {
+        "true_real_pred_real": 197,
+        "true_real_pred_fake": 3,
+        "true_fake_pred_real": 6,
+        "true_fake_pred_fake": 194,
+        "matrix_rows_true_cols_pred": [
+          [
+            197,
+            3
+          ],
+          [
+            6,
+            194
+          ]
+        ]
+      }
+    },
+    "llm_only": {
+      "n_samples": 400,
+      "threshold": 0.5,
+      "accuracy": 0.6625,
+      "auc_roc": 0.675775,
+      "macro_f1": 0.6577751582789892,
+      "per_class": {
+        "real": {
+          "precision": 0.631578947368421,
+          "recall": 0.78,
+          "f1": 0.697986577181208,
+          "support": 200
+        },
+        "fake": {
+          "precision": 0.7124183006535948,
+          "recall": 0.545,
+          "f1": 0.6175637393767706,
+          "support": 200
+        }
+      },
+      "confusion_matrix": {
+        "true_real_pred_real": 156,
+        "true_real_pred_fake": 44,
+        "true_fake_pred_real": 91,
+        "true_fake_pred_fake": 109,
+        "matrix_rows_true_cols_pred": [
+          [
+            156,
+            44
+          ],
+          [
+            91,
+            109
+          ]
+        ]
+      },
+      "unparseable_verdicts": 28,
+      "unparseable_rate": 0.07
+    },
+    "fused": {
+      "n_samples": 400,
+      "threshold": 0.5,
+      "accuracy": 0.9825,
+      "auc_roc": 0.995725,
+      "macro_f1": 0.9824990155696258,
+      "per_class": {
+        "real": {
+          "precision": 0.9753694581280788,
+          "recall": 0.99,
+          "f1": 0.9826302729528535,
+          "support": 200
+        },
+        "fake": {
+          "precision": 0.9898477157360406,
+          "recall": 0.975,
+          "f1": 0.982367758186398,
+          "support": 200
+        }
+      },
+      "confusion_matrix": {
+        "true_real_pred_real": 198,
+        "true_real_pred_fake": 2,
+        "true_fake_pred_real": 5,
+        "true_fake_pred_fake": 195,
+        "matrix_rows_true_cols_pred": [
+          [
+            198,
+            2
+          ],
+          [
+            5,
+            195
+          ]
+        ]
+      }
+    }
+  }
+}

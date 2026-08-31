@@ -4,7 +4,7 @@ import re
 from PIL import Image
 
 from backend.app.llm.model import load_qwen
-from backend.app.llm.prompts import FORENSIC_PROMPT
+from backend.app.llm.prompts import BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT
 
 MAX_RETRIES = 3
 MAX_NEW_TOKENS = 512
@@ -28,14 +28,20 @@ def _parse_json(text: str) -> dict | None:
     return None
 
 
-def run_reasoning(face_crop_pil: Image.Image, fake_score: float) -> dict:
+def run_reasoning(face_crop_pil: Image.Image,
+                  fake_score: float | None = None) -> dict:
     """
     Runs Qwen3-VL-2B on the face crop + classifier score and returns the
     parsed forensic verdict. Retries a few times on JSON parse failure before
     giving up and returning an "unknown" result with the raw text attached.
+
+    fake_score=None withholds the classifier score and uses the blind prompt.
+    That is for the ablation only: it keeps the reasoning layer independent
+    of the classifier so their fusion is not double-counting one signal.
     """
     model, processor = load_qwen()
-    prompt = FORENSIC_PROMPT.format(fake_score=fake_score)
+    prompt = (BLIND_FORENSIC_PROMPT.format() if fake_score is None
+              else FORENSIC_PROMPT.format(fake_score=fake_score))
     messages = [{"role": "user", "content": [
         {"type": "image", "image": face_crop_pil},
         {"type": "text", "text": prompt},

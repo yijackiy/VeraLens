@@ -1,0 +1,50 @@
+# One command: docker compose up --build
+#
+# First build downloads the CUDA base image and the CUDA torch wheels — budget
+# 20-40 minutes and several GB. Subsequent builds are cached.
+
+services:
+  backend:
+    build:
+      context: .                     # repo root: the Dockerfile needs requirements.txt
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # The fine-tuned checkpoint is git-ignored, so it is mounted rather than
+      # baked in. Without this the classifier silently falls back to ImageNet
+      # weights (see classifier.py).
+      - ./backend/models:/app/backend/models:ro
+      # Qwen3-VL is ~4GB and InsightFace's buffalo_l ~300MB. Mounting the host
+      # caches means the container reuses what is already on disk instead of
+      # re-downloading them on every fresh container.
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+      - ${HOME}/.insightface:/root/.insightface
+      # Generated heatmaps survive a restart.
+      - ./backend/static:/app/backend/static
+    environment:
+      - JUDGE_PROVIDER=${JUDGE_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      # /health is deliberately dependency-free, so this stays fast even while
+      # a model is loading.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend

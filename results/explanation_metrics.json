@@ -1,0 +1,106 @@
+{
+  "corpus": {
+    "n": 372,
+    "real": 184,
+    "fake": 188,
+    "mean_length_tokens": 55.2,
+    "min_length_tokens": 35,
+    "max_length_tokens": 82
+  },
+  "rouge_vs_canonical_references": {
+    "caveat": "References are canonical descriptions written for this project, not human ground truth - this dataset has no reference explanations. Measures vocabulary alignment, not correctness.",
+    "overall": {
+      "rouge1": 0.3554,
+      "rougeL": 0.249
+    },
+    "per_class": {
+      "real": {
+        "rouge1": 0.3754,
+        "rougeL": 0.2762,
+        "n": 184
+      },
+      "fake": {
+        "rouge1": 0.3357,
+        "rougeL": 0.2223,
+        "n": 188
+      }
+    }
+  },
+  "reference_free": {
+    "distinct_1": 0.0203,
+    "distinct_2": 0.0972,
+    "mean_pairwise_rougeL_within_class": {
+      "real": 0.4237,
+      "fake": 0.3761
+    },
+    "mean_pairwise_rougeL_all": 0.395,
+    "signal_coverage_overall": {
+      "hairline": {
+        "mentions": 317,
+        "rate": 0.8522
+      },
+      "eye highlights": {
+        "mentions": 161,
+        "rate": 0.4328
+      },
+      "skin texture": {
+        "mentions": 324,
+        "rate": 0.871
+      },
+      "lighting": {
+        "mentions": 372,
+        "rate": 1.0
+      },
+      "edge blending": {
+        "mentions": 222,
+        "rate": 0.5968
+      }
+    },
+    "signal_coverage_by_class": {
+      "real": {
+        "hairline": {
+          "mentions": 148,
+          "rate": 0.8043
+        },
+        "eye highlights": {
+          "mentions": 82,
+          "rate": 0.4457
+        },
+        "skin texture": {
+          "mentions": 164,
+          "rate": 0.8913
+        },
+        "lighting": {
+          "mentions": 184,
+          "rate": 1.0
+        },
+        "edge blending": {
+          "mentions": 122,
+          "rate": 0.663
+        }
+      },
+      "fake": {
+        "hairline": {
+          "mentions": 169,
+          "rate": 0.8989
+        },
+        "eye highlights": {
+          "mentions": 79,
+          "rate": 0.4202
+        },
+        "skin texture": {
+          "mentions": 160,
+          "rate": 0.8511
+        },
+        "lighting": {
+          "mentions": 188,
+          "rate": 1.0
+        },
+        "edge blending": {
+          "mentions": 100,
+          "rate": 0.5319
+        }
+      }
+    }
+  }
+}
