@@ -1,0 +1,48 @@
+{
+  "blind": {
+    "fake": {
+      "n": 116,
+      "mean": 2.233
+    },
+    "real": {
+      "n": 114,
+      "mean": 4.561
+    }
+  },
+  "informed": {
+    "fake": {
+      "n": 95,
+      "mean": 3.032
+    },
+    "real": {
+      "n": 96,
+      "mean": 4.688
+    }
+  },
+  "paired": {
+    "fake": {
+      "n": 57,
+      "delta": 0.912,
+      "improved": 31,
+      "worsened": 10,
+      "unchanged": 16,
+      "sign_test_p": 0.0015
+    },
+    "real": {
+      "n": 56,
+      "delta": -0.018,
+      "improved": 5,
+      "worsened": 5,
+      "unchanged": 46,
+      "sign_test_p": 1.0
+    },
+    "all": {
+      "n": 113,
+      "delta": 0.451,
+      "improved": 36,
+      "worsened": 15,
+      "unchanged": 62,
+      "sign_test_p": 0.0046
+    }
+  }
+}

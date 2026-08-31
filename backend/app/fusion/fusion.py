@@ -12,9 +12,16 @@ def fuse(classifier_score: float, llm_result: dict, w_vision: float = 0.55, w_ll
         llm_fake_prob = llm_result["confidence"] if llm_result["verdict"] == "fake" \
             else 1 - llm_result["confidence"]
         final_score = w_vision * classifier_score + w_llm * llm_fake_prob
+    verdict = "fake" if final_score > 0.5 else "real"
     return {
-        "final_verdict": "fake" if final_score > 0.5 else "real",
-        "final_confidence": final_score,
+        "final_verdict": verdict,
+        # The fused Fake Probability: always oriented toward fake, whatever the
+        # verdict. This is the number to feed metrics.
+        "fake_probability": final_score,
+        # Confidence in the verdict actually stated. Without the flip, a REAL
+        # verdict at fake_probability 0.18 renders as "REAL (18.0%)", which
+        # reads as barely-confident when it means the opposite.
+        "final_confidence": final_score if verdict == "fake" else 1 - final_score,
         "signals": llm_result["signals"],
         "explanation": llm_result["explanation"],
     }

@@ -57,6 +57,8 @@ from evaluate import (
 ABLATION_SEED = 1337
 RECORDS_PATH = os.path.join(RESULTS_DIR, "ablation_records.jsonl")
 METRICS_PATH = os.path.join(RESULTS_DIR, "ablation_metrics.json")
+INFORMED_RECORDS = os.path.join(RESULTS_DIR, "ablation_records_informed.jsonl")
+INFORMED_METRICS = os.path.join(RESULTS_DIR, "ablation_metrics_informed.json")
 DEFAULT_N = 800
 
 
@@ -139,7 +141,7 @@ def score_with_classifier(samples):
     return scores
 
 
-def run_reasoning_phase(pending, scores, fuse):
+def run_reasoning_phase(pending, scores, fuse, informed=False):
     """Phase B. Qwen3-VL over the remaining images, appending as it goes."""
     from backend.app.llm.reasoner import run_reasoning
 
@@ -150,7 +152,9 @@ def run_reasoning_phase(pending, scores, fuse):
             crop = Image.open(path).convert("RGB").resize((IMG_SIZE, IMG_SIZE))
 
             try:
-                llm = run_reasoning(crop, fake_score=None)  # blind
+                llm = run_reasoning(
+                    crop,
+                    fake_score=scores[path] if informed else None)
             except Exception as exc:  # keep the run alive, record the failure
                 llm = {"verdict": "unknown", "confidence": 0.0, "signals": [],
                        "explanation": f"reasoning failed: "
@@ -180,7 +184,7 @@ def run_reasoning_phase(pending, scores, fuse):
                 "llm_verdict": verdict,
                 "llm_confidence": confidence,
                 "llm_fake_probability": llm_fake_probability(verdict, confidence),
-                "fused_fake_probability": float(fused["final_confidence"]),
+                "fused_fake_probability": float(fused["fake_probability"]),
                 "fused_verdict": fused["final_verdict"],
                 "explanation": llm.get("explanation", ""),
                 "signals": llm.get("signals", []),
@@ -218,7 +222,21 @@ def main():
                     help=f"images to sample, balanced (default {DEFAULT_N})")
     ap.add_argument("--restart", action="store_true",
                     help="discard existing records and start over")
+    ap.add_argument("--informed", action="store_true",
+                    help="give the VLM the classifier score, as production "
+                         "does. Writes to a separate records file; measures "
+                         "the deployed configuration rather than the blind "
+                         "one the ablation needs (see ADR 0003).")
     args = ap.parse_args()
+
+    global RECORDS_PATH, METRICS_PATH
+    if args.informed:
+        RECORDS_PATH, METRICS_PATH = INFORMED_RECORDS, INFORMED_METRICS
+        print("INFORMED mode: the VLM receives the classifier score, as "
+              "production does.")
+        print("Not a valid LLM-Only ablation arm - this measures explanation "
+              "quality")
+        print("for the deployed configuration (see ADR 0003).")
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
     if args.restart and os.path.exists(RECORDS_PATH):
@@ -258,7 +276,7 @@ def main():
         print(f"\nPhase B - Qwen3-VL reasoning over {len(pending)} images...")
         print("Safe to interrupt: finished images are already on disk.")
         t0 = time.time()
-        run_reasoning_phase(pending, scores, fuse)
+        run_reasoning_phase(pending, scores, fuse, informed=args.informed)
         print(f"Reasoning finished in {(time.time() - t0) / 60:.1f} min")
     else:
         print("Nothing pending - all sampled images already have records.")

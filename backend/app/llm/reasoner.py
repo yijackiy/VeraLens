@@ -4,7 +4,9 @@ import re
 from PIL import Image
 
 from backend.app.llm.model import load_qwen
-from backend.app.llm.prompts import BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT
+from backend.app.llm.prompts import (BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT,
+                                     GUIDED_FORENSIC_PROMPT,
+                                     describe_assessment)
 
 MAX_RETRIES = 3
 MAX_NEW_TOKENS = 512
@@ -29,7 +31,8 @@ def _parse_json(text: str) -> dict | None:
 
 
 def run_reasoning(face_crop_pil: Image.Image,
-                  fake_score: float | None = None) -> dict:
+                  fake_score: float | None = None,
+                  legacy_numeric: bool = False) -> dict:
     """
     Runs Qwen3-VL-2B on the face crop + classifier score and returns the
     parsed forensic verdict. Retries a few times on JSON parse failure before
@@ -38,10 +41,22 @@ def run_reasoning(face_crop_pil: Image.Image,
     fake_score=None withholds the classifier score and uses the blind prompt.
     That is for the ablation only: it keeps the reasoning layer independent
     of the classifier so their fusion is not double-counting one signal.
+
+    When fake_score is given it is described in words, not interpolated as a
+    numeral: this model copies an injected number straight into its own
+    confidence field instead of judging for itself (ADR 0008).
+
+    legacy_numeric=True restores that broken behaviour. It exists only to
+    reproduce the bug for the write-up and must not be used in the app.
     """
     model, processor = load_qwen()
-    prompt = (BLIND_FORENSIC_PROMPT.format() if fake_score is None
-              else FORENSIC_PROMPT.format(fake_score=fake_score))
+    if fake_score is None:
+        prompt = BLIND_FORENSIC_PROMPT.format()
+    elif legacy_numeric:
+        prompt = FORENSIC_PROMPT.format(fake_score=fake_score)
+    else:
+        prompt = GUIDED_FORENSIC_PROMPT.format(
+            assessment=describe_assessment(fake_score))
     messages = [{"role": "user", "content": [
         {"type": "image", "image": face_crop_pil},
         {"type": "text", "text": prompt},
