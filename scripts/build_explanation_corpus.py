@@ -28,6 +28,7 @@ Usage:
     python scripts/build_explanation_corpus.py
 """
 
+import argparse
 import json
 import os
 import sys
@@ -37,6 +38,8 @@ os.chdir(REPO_ROOT)
 
 RECORDS = os.path.join("results", "ablation_records.jsonl")
 OUT = os.path.join("data", "eval", "explanations.jsonl")
+INFORMED_RECORDS = os.path.join("results", "ablation_records_informed.jsonl")
+INFORMED_OUT = os.path.join("data", "eval", "explanations_informed.jsonl")
 
 GROUND_TRUTH = {
     "real": ["none - authentic photograph, no manipulation artefacts present"],
@@ -46,15 +49,27 @@ GROUND_TRUTH = {
 
 
 def main():
-    if not os.path.exists(RECORDS):
-        sys.exit(f"{RECORDS} not found - run scripts/evaluate_ablation.py first.")
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--informed", action="store_true",
+                    help="build from the informed (production-mode) run "
+                         "instead of the blind one")
+    args = ap.parse_args()
 
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    records, out = ((INFORMED_RECORDS, INFORMED_OUT) if args.informed
+                    else (RECORDS, OUT))
+    # sample_ids must not collide with the blind corpus: both land in the same
+    # judge_scores table and the analysis has to tell them apart.
+    prefix = "inf_" if args.informed else ""
+
+    if not os.path.exists(records):
+        sys.exit(f"{records} not found - run scripts/evaluate_ablation.py first.")
+
+    os.makedirs(os.path.dirname(out), exist_ok=True)
 
     written = skipped = 0
     seen = set()
-    with open(RECORDS, encoding="utf-8") as src, \
-            open(OUT, "w", encoding="utf-8") as dst:
+    with open(records, encoding="utf-8") as src, \
+            open(out, "w", encoding="utf-8") as dst:
         for line in src:
             line = line.strip()
             if not line:
@@ -74,7 +89,7 @@ def main():
                 continue
 
             sample_id = os.path.splitext(os.path.basename(row["path"]))[0]
-            sample_id = f"{row['true_class']}_{sample_id}"
+            sample_id = f"{prefix}{row['true_class']}_{sample_id}"
             if sample_id in seen:
                 continue
             seen.add(sample_id)
@@ -88,7 +103,7 @@ def main():
             }) + "\n")
             written += 1
 
-    print(f"Wrote {written} explanations to {OUT}")
+    print(f"Wrote {written} explanations to {out}")
     print(f"Skipped {skipped} records with unparseable verdicts "
           f"(no explanation to grade)")
 

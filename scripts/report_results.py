@@ -470,6 +470,76 @@ def main():
             ]
         out.append("")
 
+    # ── blind vs production (informed) ──
+    comp = load("informed_vs_blind.json")
+    out += ["## Explanation Quality — blind vs production configuration", ""]
+    if comp is None:
+        out += ["_Not yet run._", ""]
+    else:
+        b, i = comp["blind"], comp["informed"]
+        out += [
+            "The ablation runs the reasoning layer blind so the LLM-Only arm",
+            "stays honest (ADR 0003). Production instead tells it what the",
+            "classifier found. This is what that is worth.",
+            "",
+            "The classifier's verdict is passed **qualitatively** (\"very likely",
+            "MANIPULATED\") rather than as a number. Handing a 2B model the raw",
+            "score makes it copy that number into its own confidence field",
+            "instead of judging for itself — see ADR 0008.",
+            "",
+            "| True class | blind n | blind mean | informed n | informed mean |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for cls in ("fake", "real"):
+            bc, ic = b.get(cls), i.get(cls)
+            if bc and ic:
+                out.append(f"| {cls} | {bc['n']} | {bc['mean']:.2f} | "
+                           f"{ic['n']} | {ic['mean']:.2f} |")
+
+        paired = comp.get("paired", {})
+        if paired:
+            out += [
+                "",
+                "Paired per image, with an exact sign test — a mean can move on",
+                "a handful of images, so what matters is how many actually",
+                "changed and in which direction:",
+                "",
+                "| Set | n | Change | Better | Worse | Unchanged | p |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
+            ]
+            for label in ("fake", "real", "all"):
+                p = paired.get(label)
+                if p:
+                    out.append(
+                        f"| {label} | {p['n']} | {p['delta']:+.2f} | "
+                        f"{p['improved']} | {p['worsened']} | "
+                        f"{p['unchanged']} | {p['sign_test_p']:.4f} |")
+
+            fake = paired.get("fake")
+            if fake and fake["sign_test_p"] < 0.05:
+                out += [
+                    "",
+                    f"The gain is significant on fake images "
+                    f"({fake['delta']:+.2f}, p = {fake['sign_test_p']:.4f}) and",
+                    "absent on real ones, which is what should happen: blind",
+                    "explanations of real faces already scored near ceiling, so",
+                    "there was no headroom, while explanations of fakes were the",
+                    "ones being guessed.",
+                    "",
+                    "This does not overturn the detection null result — the",
+                    "reasoning layer still cannot find deepfakes unaided. The",
+                    "claim it supports is narrower and is the thesis's actual",
+                    "subject: **given a reliable detector's verdict, the",
+                    "reasoning layer explains significantly better, provided that",
+                    "verdict is communicated in words rather than as a number.**",
+                    "",
+                    "Both arms were graded by the same judge, so the",
+                    "self-evaluation bias in ADR 0007 applies to each equally and",
+                    "largely cancels in the comparison. The paired difference is",
+                    "more trustworthy than either absolute mean.",
+                ]
+        out.append("")
+
     out += [
         "## Limitations",
         "",

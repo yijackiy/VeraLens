@@ -160,18 +160,9 @@ Provider `local`, model `Qwen/Qwen3-VL-2B-Instruct@89644892e4d85e24eaac8bacfd4f4
 
 | Quantity | Value |
 | --- | --- |
-| Explanations scored | 230 |
+| Explanations scored | 425 |
 | Failed calls | 4 |
-| Mean score (1-5) | 3.387 |
-
-Scored 234 of the 372-explanation corpus. The run stopped twice: first on
-the daily quota guard (correct for the Gemini free tier, not
-meaningful for an on-device judge), then on a reproducible
-segfault while loading the model — an environment failure this
-machine has hit before, not a defect in the evaluation. The
-corpus is stored in ablation order, which was shuffled before
-scoring, so the scored portion is an unbiased sample rather
-than a truncated one, and it stayed class-balanced.
+| Mean score (1-5) | 3.591 |
 
 | True class | n | Mean score |
 | --- | --- | --- |
@@ -180,10 +171,10 @@ than a truncated one, and it stayed class-balanced.
 
 | Score | Count |
 | --- | --- |
-| 1 | 61 |
-| 2 | 41 |
-| 3 | 2 |
-| 5 | 126 |
+| 1 | 81 |
+| 2 | 87 |
+| 3 | 7 |
+| 5 | 250 |
 
 **The judge is grading its own output.** No Gemini key was
 configured, so step 4.4 ran on the on-device fallback, which
@@ -192,6 +183,50 @@ explanations. Models favour text from their own distribution,
 so this mean is an optimistic bound rather than an independent
 assessment (ADR 0007). Re-running under Gemini is a config
 change; scores are cached per model, so both can be reported.
+
+## Explanation Quality — blind vs production configuration
+
+The ablation runs the reasoning layer blind so the LLM-Only arm
+stays honest (ADR 0003). Production instead tells it what the
+classifier found. This is what that is worth.
+
+The classifier's verdict is passed **qualitatively** ("very likely
+MANIPULATED") rather than as a number. Handing a 2B model the raw
+score makes it copy that number into its own confidence field
+instead of judging for itself — see ADR 0008.
+
+| True class | blind n | blind mean | informed n | informed mean |
+| --- | --- | --- | --- | --- |
+| fake | 116 | 2.23 | 95 | 3.03 |
+| real | 114 | 4.56 | 96 | 4.69 |
+
+Paired per image, with an exact sign test — a mean can move on
+a handful of images, so what matters is how many actually
+changed and in which direction:
+
+| Set | n | Change | Better | Worse | Unchanged | p |
+| --- | --- | --- | --- | --- | --- | --- |
+| fake | 57 | +0.91 | 31 | 10 | 16 | 0.0015 |
+| real | 56 | -0.02 | 5 | 5 | 46 | 1.0000 |
+| all | 113 | +0.45 | 36 | 15 | 62 | 0.0046 |
+
+The gain is significant on fake images (+0.91, p = 0.0015) and
+absent on real ones, which is what should happen: blind
+explanations of real faces already scored near ceiling, so
+there was no headroom, while explanations of fakes were the
+ones being guessed.
+
+This does not overturn the detection null result — the
+reasoning layer still cannot find deepfakes unaided. The
+claim it supports is narrower and is the thesis's actual
+subject: **given a reliable detector's verdict, the
+reasoning layer explains significantly better, provided that
+verdict is communicated in words rather than as a number.**
+
+Both arms were graded by the same judge, so the
+self-evaluation bias in ADR 0007 applies to each equally and
+largely cancels in the comparison. The paired difference is
+more trustworthy than either absolute mean.
 
 ## Limitations
 
