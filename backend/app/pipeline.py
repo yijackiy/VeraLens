@@ -1,10 +1,11 @@
 import os
+import time
 import uuid
 
 import cv2
 from PIL import Image
 
-from backend.app.preprocessing.face_pipeline import get_face_crop
+from backend.app.preprocessing.face_pipeline import detect_face
 from backend.app.classifier.classifier import classify, unload_model
 from backend.app.classifier.gradcam import get_heatmap, unload_cam
 from backend.app.llm.reasoner import run_reasoning
@@ -22,7 +23,9 @@ def run_full_pipeline(image_path: str) -> dict:
     pattern so the classifier and the LLM are never resident on the GPU
     at the same time.
     """
-    crop_bgr = get_face_crop(image_path)
+    started = time.perf_counter()
+
+    crop_bgr, face_count = detect_face(image_path)
     if crop_bgr is None:
         return {"error": "no_face_detected"}
 
@@ -41,4 +44,9 @@ def run_full_pipeline(image_path: str) -> dict:
 
     result = fuse(classifier_result["fake_score"], llm_result)
     result["heatmap_url"] = f"/static/heatmaps/{heatmap_filename}"
+    result["faces_found"] = face_count
+    # Measured, not estimated. The interface cannot report progress while the
+    # pipeline runs (one blocking response), so the honest thing it can show
+    # afterwards is how long this particular photo actually took.
+    result["elapsed_seconds"] = round(time.perf_counter() - started, 1)
     return result
