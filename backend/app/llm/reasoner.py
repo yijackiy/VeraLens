@@ -11,10 +11,12 @@ from backend.app.llm.prompts import (BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT,
 MAX_RETRIES = 3
 MAX_NEW_TOKENS = 512
 
+VALID_VERDICTS = ("real", "fake")
+
 _JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
-def _parse_json(text: str) -> dict | None:
+def _parse_json(text: str):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -30,13 +32,108 @@ def _parse_json(text: str) -> dict | None:
     return None
 
 
+def _unit_float(value) -> float | None:
+    """
+    Reads a model-supplied 0.0-1.0 number, or returns None when it cannot be
+    read as one. A 2B model writes 0.81, "0.81" and "81%" interchangeably, so
+    all three are accepted; anything else is a failure to report, not a value
+    to guess at.
+    """
+    if isinstance(value, bool):  # bool is a subclass of int, but not a score
+        return None
+    if isinstance(value, (int, float)):
+        number = float(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        try:
+            number = float(text.rstrip("%").strip())
+        except ValueError:
+            return None
+        if text.endswith("%"):
+            number /= 100.0
+    else:
+        return None
+    if number != number:  # NaN
+        return None
+    return number
+
+
+def _clean_signals(raw) -> list:
+    """
+    Keeps the well-formed entries and drops the rest. One malformed signal
+    should not cost the caller the explanation and the other three, and
+    severity only drives a bar in the interface — so it is clamped rather
+    than rejected, unlike confidence.
+    """
+    if not isinstance(raw, list):
+        return []
+    cleaned = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        severity = _unit_float(item.get("severity"))
+        note = item.get("note")
+        cleaned.append({
+            "name": name.strip(),
+            "severity": 0.0 if severity is None else min(1.0, max(0.0, severity)),
+            "note": note.strip() if isinstance(note, str) else "",
+        })
+    return cleaned
+
+
+def _validate(parsed) -> dict | None:
+    """
+    Returns the reply in the schema the prompt asked for, or None when the
+    model produced valid JSON of the wrong shape — which the caller then
+    treats exactly like unparseable text, and retries.
+
+    Valid-but-wrong-shaped JSON is a separate failure from unparseable text
+    and was previously unguarded: `{"foo": 1}`, a bare list, or a missing
+    "signals" key all reached fuse() and raised KeyError or TypeError
+    mid-request, surfacing as an HTTP 500 the interface can say nothing
+    useful about. evaluate_ablation.py already defends against this; the
+    production path did not.
+
+    confidence is rejected rather than clamped, because it is weighted into
+    the fused Fake Probability — inventing a number there is worse than
+    admitting the reply was unusable.
+    """
+    if not isinstance(parsed, dict):
+        return None
+
+    verdict = parsed.get("verdict")
+    if not isinstance(verdict, str) or verdict.strip().lower() not in VALID_VERDICTS:
+        return None
+
+    confidence = _unit_float(parsed.get("confidence"))
+    if confidence is None or not 0.0 <= confidence <= 1.0:
+        return None
+
+    explanation = parsed.get("explanation")
+    if not isinstance(explanation, str) or not explanation.strip():
+        return None
+
+    return {
+        "verdict": verdict.strip().lower(),
+        "confidence": confidence,
+        "signals": _clean_signals(parsed.get("signals")),
+        "explanation": explanation.strip(),
+    }
+
+
 def run_reasoning(face_crop_pil: Image.Image,
                   fake_score: float | None = None,
                   legacy_numeric: bool = False) -> dict:
     """
     Runs Qwen3-VL-2B on the face crop + classifier score and returns the
-    parsed forensic verdict. Retries a few times on JSON parse failure before
+    forensic verdict, normalised to the prompt's schema. Retries a few times
+    when the reply is unparseable *or* parses to the wrong shape, before
     giving up and returning an "unknown" result with the raw text attached.
+    Every returned dict therefore has a real verdict, a float confidence in
+    [0,1], a list of well-formed signals, and a non-empty explanation.
 
     fake_score=None withholds the classifier score and uses the blind prompt.
     That is for the ablation only: it keeps the reasoning layer independent
@@ -85,9 +182,9 @@ def run_reasoning(face_crop_pil: Image.Image,
         text = processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
         last_raw = text
 
-        parsed = _parse_json(text)
-        if parsed is not None:
-            return parsed
+        validated = _validate(_parse_json(text))
+        if validated is not None:
+            return validated
 
     return {
         "verdict": "unknown", "confidence": 0.0, "signals": [],
