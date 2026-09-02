@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import threading
 import uuid
 
 from fastapi import FastAPI, UploadFile, File
@@ -20,6 +21,13 @@ app.add_middleware(
 os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# One GPU, one pipeline at a time. classifier.py, gradcam.py and model.py each
+# keep the loaded model in a module-level global, and run_full_pipeline() frees
+# the classifier partway through — so two overlapping analyses can unload a
+# model out from under the request still using it. Serialising here is not a
+# throttle, it matches the hardware.
+_gpu_lock = threading.Lock()
+
 
 @app.get("/health")
 def health():
@@ -35,13 +43,24 @@ def health():
 
 
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
+def analyze(file: UploadFile = File(...)):
+    """
+    Deliberately `def`, not `async def`.
+
+    run_full_pipeline() blocks for 15-90 seconds. On an async endpoint that
+    runs directly on the event loop, so nothing else is served for the whole
+    analysis — including /health, which exists to be polled every 10 minutes
+    and would time out exactly when the server is busiest. A plain `def`
+    endpoint is handed to Starlette's threadpool instead, leaving the loop
+    free, and _gpu_lock keeps the pipeline itself single-file.
+    """
     suffix = os.path.splitext(file.filename)[1]
     path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}{suffix}")
     with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
     try:
-        result = run_full_pipeline(path)
+        with _gpu_lock:
+            result = run_full_pipeline(path)
     finally:
         os.remove(path)
     return result

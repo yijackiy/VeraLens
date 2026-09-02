@@ -22,6 +22,16 @@ def fuse(classifier_score: float, llm_result: dict, w_vision: float = 0.55, w_ll
         # verdict at fake_probability 0.18 renders as "REAL (18.0%)", which
         # reads as barely-confident when it means the opposite.
         "final_confidence": final_score if verdict == "fake" else 1 - final_score,
+        # The classifier's own Fake Probability, before fusion. Without it the
+        # 0.55/0.45 split is invisible to the caller and the fused number reads
+        # as though the classifier produced it — which it did not.
+        "classifier_score": classifier_score,
+        # False when the VLM's reply could not be parsed after every retry.
+        # The explanation and signals below are then placeholders rather than
+        # content ("Parsing failed — raw output logged for debugging.", []), so
+        # a caller that renders them blindly shows a debug string to a user.
+        # The verdict itself is unaffected: the classifier ran either way.
+        "explanation_available": llm_result["verdict"] != "unknown",
         "signals": llm_result["signals"],
         "explanation": llm_result["explanation"],
     }

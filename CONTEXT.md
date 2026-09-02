@@ -4,6 +4,10 @@ VeraLens decides whether a photograph of a face was synthetically generated, and
 
 ## Detection
 
+**Submitted Photo**:
+The complete photograph a person hands to VeraLens, before any face detection — chosen from a file or captured with the camera. One term covers both sources deliberately: the pipeline cannot distinguish them, and a Submitted Photo that never yields a Face Crop is not a Verdict of REAL, it is nothing at all.
+_Avoid_: upload, input image, source image, selfie
+
 **Face Crop**:
 The 224×224 region containing one detected face, produced by InsightFace. The only input the classifier ever sees.
 _Avoid_: thumbnail, ROI, patch
