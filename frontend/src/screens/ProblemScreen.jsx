@@ -67,6 +67,8 @@ export function ProblemScreen({
   onChooseAnother,
   onRetry,
   onHowItWorks,
+  held,
+  onAbandonHeld,
 }) {
   const variant = VARIANTS[kind] ?? VARIANTS.server
 
@@ -107,13 +109,36 @@ export function ProblemScreen({
               <p className="m-0 text-[15px] leading-relaxed text-terracotta-deep">{variant.band}</p>
             </div>
 
+            {/* Photo A cost someone 40 to 90 seconds. Losing it because the
+                second photo had no face in it is the failure you least want
+                in front of an audience, so the held Analysis is stated here
+                and both ways forward keep it. */}
+            {held && (
+              <div className="mt-6 flex max-w-[560px] items-start gap-3.5 rounded-xl bg-sage-tint px-5 py-4 text-left">
+                <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
+                <p className="m-0 text-body-sm text-sage-ink">
+                  <span className="font-semibold">{held.photo.file.name}</span> is still held as
+                  photo A. Nothing that happened here touched it.
+                </p>
+              </div>
+            )}
+
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Button onClick={onChooseAnother}>
-                {fromCamera ? 'Take another photo' : 'Choose a different photo'}
+                {held
+                  ? 'Try a different second photo'
+                  : fromCamera
+                    ? 'Take another photo'
+                    : 'Choose a different photo'}
               </Button>
               <Button variant="secondary" onClick={onRetry} className="px-6">
                 Try this one again
               </Button>
+              {held && (
+                <Button variant="quiet" onClick={onAbandonHeld} className="px-6">
+                  Back to photo A alone
+                </Button>
+              )}
             </div>
           </div>
 

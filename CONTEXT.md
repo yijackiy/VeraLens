@@ -32,6 +32,14 @@ _Avoid_: ensemble, voting, blending
 One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis.
 _Avoid_: result, report, scan, detection
 
+**Held Analysis**:
+The one Analysis parked aside while a second photo is submitted, so the two can be read together. Exactly one is ever held; it lives in the browser for as long as the tab does and is never stored. Holding is what turns the next submission into the second half of a Comparison rather than a fresh start.
+_Avoid_: pinned, saved, bookmarked, first result, photo 1
+
+**Comparison**:
+Two Analyses read against one shared Fake Probability scale. The distance between them is a distance and nothing more — it supports no ranking, and neither Analysis becomes more certain for having been placed next to another.
+_Avoid_: ranking, versus, diff, A/B test, score comparison
+
 **Explanation Register**:
 Which of the two presentations of one Analysis is showing: **Plain**, what the reasoning layer said in its own words, or **Technical**, every measurement behind the Verdict. Plain is a strict reduction of Technical — nothing appears in Plain that Technical omits — and neither register changes a Verdict, a Fake Probability, or the disclosure of who wrote the explanation.
 _Avoid_: mode, view, detail level, expert mode
