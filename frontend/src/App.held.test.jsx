@@ -157,3 +157,90 @@ describe('holding an analysis for comparison', () => {
     expect(screen.queryByRole('button', { name: /compare with another photo/i })).toBeNull()
   })
 })
+
+/** A promise this test resolves by hand, so photo B can be left mid-flight. */
+function deferred() {
+  let settle
+  const promise = new Promise((resolve) => {
+    settle = resolve
+  })
+  return { promise, settle }
+}
+
+/**
+ * A filled slot swaps its dropzone — and its file input — for a preview, so
+ * "the empty slot's input" is always the first one still in the document.
+ */
+function chooseIntoNextSlot(name) {
+  const input = document.querySelector('input[type="file"]')
+  if (!input) throw new Error('no empty slot to choose into')
+  const file = new File(['x'], name, { type: 'image/jpeg' })
+  fireEvent.change(input, { target: { files: [file] } })
+}
+
+/**
+ * Two layers of object URLs exist in this flow. ComparePickScreen makes its own
+ * for the two slot previews and revokes them when it unmounts — correctly — so
+ * the first two entries in CREATED are always those, and App's own photos for A
+ * and B follow.
+ */
+const appPhotoA = () => CREATED[2]
+const appPhotoB = () => CREATED[3]
+
+describe('choosing both photos up front', () => {
+  async function pickBoth() {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /compare two/i }))
+    await screen.findByRole('button', { name: /choose both photos first/i })
+
+    chooseIntoNextSlot('first.jpg')
+    chooseIntoNextSlot('second.jpg')
+
+    const go = await screen.findByRole('button', { name: /analyse both photos/i })
+    fireEvent.click(go)
+  }
+
+  it('runs photo A first and says photo B is queued behind it', async () => {
+    const b = deferred()
+    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+
+    await pickBoth()
+
+    // Photo A's verdict is readable while B is still running, rather than both
+    // photos sharing one long blank wait.
+    await screen.findByText(/how the verdict was reached/i)
+    await screen.findByText(/is being\s*analysed now/i)
+    expect(REVOKED).not.toContain(appPhotoA())
+    expect(REVOKED).not.toContain(appPhotoB())
+
+    b.settle(analysisFor(0.91))
+    await screen.findByText(/two photos, one scale/i)
+  })
+
+  it('does not offer "compare with another" while B is in flight', async () => {
+    const b = deferred()
+    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+
+    await pickBoth()
+    await screen.findByText(/is being\s*analysed now/i)
+
+    expect(screen.queryByRole('button', { name: /compare with another photo/i })).toBeNull()
+  })
+
+  it('keeps photo A when the second run is stopped part-way', async () => {
+    const b = deferred()
+    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+
+    await pickBoth()
+    await screen.findByText(/is being\s*analysed now/i)
+
+    fireEvent.click(screen.getByRole('button', { name: /stop and keep A/i }))
+
+    // Still photo A's verdict, and now offering a comparison again because
+    // there is no longer one in flight.
+    await screen.findByRole('button', { name: /compare with another photo/i })
+    expect(screen.queryByText(/is being\s*analysed now/i)).toBeNull()
+    expect(REVOKED).toContain(appPhotoB())
+    expect(REVOKED).not.toContain(appPhotoA())
+  })
+})

@@ -8,6 +8,7 @@ import {
   THRESHOLD,
   W_CLASSIFIER,
   W_REASONING,
+  formatClock,
   formatElapsed,
   percent,
   reasoningFakeProbability,
@@ -31,6 +32,7 @@ export function VerdictScreen({
   onRetry,
   onCompare,
   onHowItWorks,
+  pending,
 }) {
   const isFake = result.final_verdict === 'fake'
   const degraded = !result.explanation_available
@@ -53,6 +55,29 @@ export function VerdictScreen({
 
         <RegisterToggle register={register} onChange={setRegister} />
       </div>
+
+      {/* Photo B is still running. This verdict is complete and correct on its
+          own terms — it is photo A's — so the page renders normally and this
+          strip is the only thing that says more is coming. */}
+      {pending && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-sage-tint px-6 py-4">
+          <div className="flex items-start gap-3.5">
+            <Icon name="hourglass_top" className="vl-blink mt-0.5 text-sage-ink" size={22} />
+            <p className="m-0 text-body-sm text-sage-ink">
+              This is photo A. <span className="font-semibold">{pending.name}</span> is being
+              analysed now — {formatClock(pending.elapsed)} so far. The comparison opens on its own
+              when it lands.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={pending.onStop}
+            className="label-caps cursor-pointer rounded-lg border border-sage-deep bg-transparent px-4 py-2.5 text-sage-ink hover:bg-sage-tint"
+          >
+            Stop and keep A
+          </button>
+        </div>
+      )}
 
       <Hero
         result={result}
@@ -87,7 +112,7 @@ export function VerdictScreen({
             isFake={isFake}
             technical={technical}
             onRestart={onRestart}
-            onCompare={onCompare}
+            onCompare={pending ? null : onCompare}
           />
         </div>
       </div>
