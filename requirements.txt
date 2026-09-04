@@ -11,7 +11,16 @@ bitsandbytes
 timm                        # EfficientNet-B4 weights
 grad-cam                    # pytorch-grad-cam
 insightface
-onnxruntime-gpu
+# Pinned, and pinned LOW on purpose. onnxruntime-gpu 1.23+ is built against
+# CUDA 13 (it wants cublasLt64_13.dll); torch above is the cu124 wheel and
+# ships CUDA 12. Unpinned, pip resolves to the CUDA 13 build, the CUDA
+# execution provider fails to load, and ONNX Runtime falls back to CPU
+# silently. 1.22.0 is the last CUDA 12 build. If torch moves to cu13, this
+# moves with it. See ADR 0011.
+onnxruntime-gpu==1.22.0
+# Do NOT also install `onnxruntime`. Both packages write the same
+# `onnxruntime` package directory and the CPU build wins, which removes
+# CUDAExecutionProvider from the available list no matter what is requested.
 opencv-python
 pillow
 
