@@ -24,7 +24,14 @@ import {
  * a grey provenance note. Right is what was measured. Tinting that note sage
  * or terracotta would make it read as part of the verdict.
  */
-export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItWorks }) {
+export function VerdictScreen({
+  result,
+  previewUrl,
+  onRestart,
+  onRetry,
+  onCompare,
+  onHowItWorks,
+}) {
   const isFake = result.final_verdict === 'fake'
   const degraded = !result.explanation_available
   const reasoning = reasoningFakeProbability(result)
@@ -80,6 +87,7 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
             isFake={isFake}
             technical={technical}
             onRestart={onRestart}
+            onCompare={onCompare}
           />
         </div>
       </div>
@@ -340,7 +348,7 @@ function NoExplanation({ onRetry }) {
   )
 }
 
-function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart }) {
+function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, onCompare }) {
   return (
     <div className="flex h-full flex-col gap-4 rounded-xl border border-line bg-paper p-6 shadow-ambient">
       <div className="mb-2 flex items-center gap-2">
@@ -405,7 +413,17 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart }
         </p>
       )}
 
-      <div className="mt-auto pt-6">
+      <div className="mt-auto flex flex-col gap-3 pt-6">
+        {onCompare && (
+          <button
+            type="button"
+            onClick={onCompare}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-none bg-sage-deep py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
+          >
+            <Icon name="compare" size={20} />
+            Compare with another photo
+          </button>
+        )}
         <button
           type="button"
           onClick={onRestart}

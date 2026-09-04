@@ -12,7 +12,7 @@ import { useBackendStatus } from '../hooks/useBackendStatus'
  * that InsightFace refuses to detect, so the card would hand people a
  * guaranteed "no face found".
  */
-export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection }) {
+export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection, held, onAbandonHeld }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const backend = useBackendStatus()
@@ -28,6 +28,28 @@ export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection }) {
         <Sidebar guidance={FILE_GUIDANCE} onHowItWorks={onHowItWorks} />
 
         <section className="flex flex-grow flex-col gap-6">
+          {/* Without this the upload screen looks identical whether or not an
+              Analysis is parked, and the second photo arrives as a surprise
+              comparison. It also carries the only way out that keeps A. */}
+          {held && (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-sage-tint px-5 py-4">
+              <div className="flex items-start gap-3.5">
+                <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
+                <p className="m-0 text-body-sm text-sage-ink">
+                  <span className="font-semibold">{held.photo.file.name}</span> is held as photo A.
+                  Whatever you choose next becomes photo B, and the two will be shown on one scale.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onAbandonHeld}
+                className="label-caps cursor-pointer rounded-lg border border-sage-deep bg-transparent px-4 py-2.5 text-sage-ink hover:bg-sage-tint"
+              >
+                Back to photo A
+              </button>
+            </div>
+          )}
+
           <div
             onClick={() => inputRef.current?.click()}
             onDragOver={(event) => {

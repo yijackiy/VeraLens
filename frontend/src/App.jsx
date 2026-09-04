@@ -4,7 +4,9 @@ import { HowItWorks } from './components/HowItWorks'
 import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
 import { rejectionReason } from './lib/analysis'
+import { comparisonOf, heldFrom } from './lib/comparison'
 import { AnalyzingScreen } from './screens/AnalyzingScreen'
+import { CompareScreen } from './screens/CompareScreen'
 import { CameraBlockedScreen } from './screens/CameraBlockedScreen'
 import { CameraReviewScreen } from './screens/CameraReviewScreen'
 import { CameraScreen } from './screens/CameraScreen'
@@ -18,14 +20,22 @@ import { VerdictScreen } from './screens/VerdictScreen'
  * deep-linking to — a verdict only exists for as long as the photo that
  * produced it is still in the browser.
  *
- *   idle ─┬─ (file chosen) ───────────────→ analyzing ─┬→ verdict
- *         └─ camera → review ─────────────→ analyzing  ├→ problem
- *         └─ camera-blocked                            └→ idle (stopped)
+ *   idle ─┬─ (file chosen) ───────────────→ analyzing ─┬→ verdict ──┐
+ *         └─ camera → review ─────────────→ analyzing  ├→ compare   │
+ *         └─ camera-blocked                            ├→ problem   │
+ *                    ▲                                 └→ idle      │
+ *                    └─────────── "compare with another" ───────────┘
+ *
+ * A Comparison is the one branch that needs two Analyses alive at once, and
+ * `held` is the whole of that: exactly one parked aside, never a list. There is
+ * no history screen and nothing is persisted — held dies with the tab, like
+ * every other Analysis here.
  */
 export default function App() {
   const [phase, setPhase] = useState('idle')
   const [photo, setPhoto] = useState(null)
   const [result, setResult] = useState(null)
+  const [held, setHeld] = useState(null)
   const [problem, setProblem] = useState(null)
   const [rejection, setRejection] = useState(null)
   const [blockReason, setBlockReason] = useState(null)
@@ -35,6 +45,15 @@ export default function App() {
   const camera = useCamera()
   const abortRef = useRef(null)
   const elapsed = useElapsed(phase === 'analyzing' ? startedAt : null)
+
+  // A ref beside the state because runAnalysis reads it at the moment the
+  // response lands, and a closure captured before "compare with another" was
+  // pressed would still think this is a first Analysis.
+  const heldRef = useRef(null)
+  const hold = useCallback((next) => {
+    heldRef.current = next
+    setHeld(next)
+  }, [])
 
   // One object URL at a time. The browser holds the only copy of the submitted
   // photo — the backend keeps the Face Crop and the heatmap, never the original.
@@ -70,7 +89,9 @@ export default function App() {
     try {
       const analysis = await analyze(subject.file, { signal: controller.signal })
       setResult(analysis)
-      setPhase('verdict')
+      // Holding an Analysis is what makes this the second half of a Comparison.
+      // Nothing else distinguishes the two runs.
+      setPhase(heldRef.current ? 'compare' : 'verdict')
     } catch (error) {
       if (error.kind === 'aborted') return
       setProblem({ kind: error.kind, detail: error.message })
@@ -87,11 +108,54 @@ export default function App() {
       if (previous) URL.revokeObjectURL(previous.url)
       return null
     })
+    // The held photo's object URL is the browser's only copy of it, and
+    // nothing else will free it — restart is where a Comparison ends.
+    if (heldRef.current) URL.revokeObjectURL(heldRef.current.photo.url)
+    hold(null)
     setResult(null)
     setProblem(null)
     setRejection(null)
     setPhase('idle')
-  }, [camera])
+  }, [camera, hold])
+
+  /**
+   * Park this Analysis and go back for a second photo. `photo` is cleared
+   * without revoking its URL — the held slot owns it now, and adopt() only
+   * revokes what is still in `photo`.
+   */
+  const startComparison = useCallback(() => {
+    if (!photo || !result) return
+    hold(heldFrom(photo, result))
+    setPhoto(null)
+    setResult(null)
+    setRejection(null)
+    setPhase('idle')
+  }, [hold, photo, result])
+
+  /** Give up on the second photo and go back to the first one's verdict. */
+  const abandonComparison = useCallback(() => {
+    const parked = heldRef.current
+    if (!parked) return restart()
+    setPhoto((previous) => {
+      if (previous) URL.revokeObjectURL(previous.url)
+      return parked.photo
+    })
+    setResult(parked.result)
+    hold(null)
+    setProblem(null)
+    setPhase('verdict')
+  }, [hold, restart])
+
+  /** Keep the held Analysis, drop the failed second photo, choose another. */
+  const retrySecondPhoto = useCallback(() => {
+    setPhoto((previous) => {
+      if (previous) URL.revokeObjectURL(previous.url)
+      return null
+    })
+    setResult(null)
+    setProblem(null)
+    setPhase('idle')
+  }, [])
 
   const onFile = useCallback(
     (file) => {
@@ -134,7 +198,14 @@ export default function App() {
   return (
     <>
       {phase === 'idle' && (
-        <UploadScreen onFile={onFile} onUseCamera={openCamera} rejection={rejection} {...help} />
+        <UploadScreen
+          onFile={onFile}
+          onUseCamera={openCamera}
+          rejection={rejection}
+          held={held}
+          onAbandonHeld={abandonComparison}
+          {...help}
+        />
       )}
 
       {phase === 'camera' && (
@@ -184,6 +255,15 @@ export default function App() {
           previewUrl={photo?.url}
           onRestart={restart}
           onRetry={() => photo && runAnalysis(photo)}
+          onCompare={startComparison}
+          {...help}
+        />
+      )}
+
+      {phase === 'compare' && held && result && photo && (
+        <CompareScreen
+          comparison={comparisonOf(held, photo, result)}
+          onRestart={restart}
           {...help}
         />
       )}
@@ -194,8 +274,14 @@ export default function App() {
           detail={problem.detail}
           fileName={photo?.file.name}
           fromCamera={photo?.fromCamera}
-          onChooseAnother={photo?.fromCamera ? openCamera : restart}
+          // With an Analysis held, "choose another" must not be `restart` —
+          // that revokes photo A's object URL and ends the Comparison.
+          onChooseAnother={
+            held ? retrySecondPhoto : photo?.fromCamera ? openCamera : restart
+          }
           onRetry={() => photo && runAnalysis(photo)}
+          held={held}
+          onAbandonHeld={abandonComparison}
           {...help}
         />
       )}
