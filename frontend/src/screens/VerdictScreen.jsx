@@ -1,6 +1,9 @@
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
+import { RegisterToggle } from '../components/RegisterToggle'
 import { asset } from '../api/client'
+import { useRegister } from '../hooks/useRegister'
+import { MODELS } from '../lib/register'
 import {
   THRESHOLD,
   W_CLASSIFIER,
@@ -27,17 +30,22 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
   const reasoning = reasoningFakeProbability(result)
   const decisive = Math.abs(result.fake_probability - THRESHOLD) > 0.35
   const agreed = reasoning === null ? null : reasoning > THRESHOLD === isFake
+  const { register, setRegister, technical } = useRegister()
 
   return (
     <Page width="wide" textured onHome={onRestart} onHelp={onHowItWorks}>
-      <button
-        type="button"
-        onClick={onRestart}
-        className="flex w-fit cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-ink-muted hover:text-terracotta"
-      >
-        <Icon name="arrow_back" size={20} />
-        <span className="label-caps">Back to uploads</span>
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={onRestart}
+          className="flex w-fit cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-ink-muted hover:text-terracotta-ink"
+        >
+          <Icon name="arrow_back" size={20} />
+          <span className="label-caps">Back to uploads</span>
+        </button>
+
+        <RegisterToggle register={register} onChange={setRegister} />
+      </div>
 
       <Hero
         result={result}
@@ -46,6 +54,7 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
         degraded={degraded}
         decisive={decisive}
         agreed={agreed}
+        technical={technical}
       />
 
       <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -53,7 +62,11 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
           <h2 className="m-0 border-b border-line pb-2 text-headline-sm font-semibold text-ink-strong">
             What the reasoning layer wrote
           </h2>
-          {degraded ? <NoExplanation onRetry={onRetry} /> : <Explanation result={result} />}
+          {degraded ? (
+            <NoExplanation onRetry={onRetry} />
+          ) : (
+            <Explanation result={result} technical={technical} />
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
@@ -65,6 +78,7 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
             reasoning={reasoning}
             degraded={degraded}
             isFake={isFake}
+            technical={technical}
             onRestart={onRestart}
           />
         </div>
@@ -73,7 +87,7 @@ export function VerdictScreen({ result, previewUrl, onRestart, onRetry, onHowItW
   )
 }
 
-function Hero({ result, previewUrl, isFake, degraded, decisive, agreed }) {
+function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technical }) {
   const probability = result.fake_probability
   const judged = isFake
     ? 'generated rather than photographed'
@@ -114,16 +128,22 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed }) {
 
           <p className="m-0 max-w-2xl text-body-md text-ink-muted">{lede}</p>
 
-          <div className="mt-2 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {/* Threshold and crop size are apparatus: true, and meaningless to
+              anyone who has not been told what the pipeline does. They stay in
+              technical and leave in plain, where the remaining two tiles are
+              the only numbers that answer a question someone actually asked. */}
+          <div
+            className={`mt-2 grid grid-cols-2 gap-4 ${technical ? 'md:grid-cols-4' : 'md:grid-cols-2'}`}
+          >
             <Tile
               label="Fake Probability"
               value={percent(probability)}
               valueClass={isFake ? 'text-error' : 'text-sage-ink'}
               borderClass={isFake ? 'border-error-container/60' : 'border-sage-tint'}
             />
-            <Tile label="Threshold" value="0.50" />
+            {technical && <Tile label="Threshold" value="0.50" />}
             <Tile label="Time taken" value={formatElapsed(result.elapsed_seconds)} />
-            <Tile label="Face Crop" value="224²" />
+            {technical && <Tile label="Face Crop" value="224²" />}
           </div>
 
           <div>
@@ -202,16 +222,29 @@ function Tile({ label, value, valueClass = 'text-ink-strong', borderClass = 'bor
   )
 }
 
-function Explanation({ result }) {
+function Explanation({ result, technical }) {
   return (
     <>
+      {/* Reworded between registers, never removed from either. Plain language
+          is a reason to disclose more readably, not to disclose less: both
+          versions still say a model wrote this, that it was told the verdict
+          first, and that it is not independent evidence. */}
       <div className="flex items-start gap-4 rounded-xl bg-container-high px-6 py-5">
         <Icon name="info" className="mt-0.5 text-ink-muted" size={22} />
         <p className="m-0 text-body-sm text-ink-muted">
-          Qwen3‑VL‑2B wrote all of this <em>after</em> being told the verdict, and it supplies 45%
-          of the fused number above. Measured on its own it separates real from fake no better than
-          a coin toss — so read this as an account of the decision, not as independent evidence for
-          it.
+          {technical ? (
+            <>
+              Qwen3‑VL‑2B wrote all of this <em>after</em> being told the verdict, and it supplies
+              45% of the fused number above. Measured on its own it separates real from fake no
+              better than a coin toss — so read this as an account of the decision, not as
+              independent evidence for it.
+            </>
+          ) : (
+            <>
+              A small language model wrote this <em>after</em> it had already been told the answer.
+              It explains the decision in words; it is not a second opinion confirming it.
+            </>
+          )}
         </p>
       </div>
 
@@ -221,13 +254,16 @@ function Explanation({ result }) {
 
       {result.signals.length > 0 && (
         <>
-          <h3 className="label-caps m-0 mt-2 text-outline">Signals it reported</h3>
+          <h3 className="label-caps m-0 mt-2 text-ink-muted">
+            {technical ? 'Signals it reported' : 'What it noticed'}
+          </h3>
           {result.signals.map((signal, index) => (
-            <SignalCard key={`${signal.name}-${index}`} signal={signal} />
+            <SignalCard key={`${signal.name}-${index}`} signal={signal} technical={technical} />
           ))}
-          <p className="m-0 text-body-sm text-outline">
-            Every explanation this system produces mentions lighting, on real and fake photos alike.
-            Treat a lighting remark as the model's habit, not as a finding.
+          <p className="m-0 text-body-sm text-ink-muted">
+            {technical
+              ? "Every explanation this system produces mentions lighting, on real and fake photos alike. Treat a lighting remark as the model's habit, not as a finding."
+              : 'This system mentions lighting in almost every explanation, whatever the photo. Take that particular remark lightly.'}
           </p>
         </>
       )}
@@ -235,7 +271,7 @@ function Explanation({ result }) {
   )
 }
 
-function SignalCard({ signal }) {
+function SignalCard({ signal, technical }) {
   const band = severityBand(signal.severity)
   const strong = band === 'High'
 
@@ -251,14 +287,19 @@ function SignalCard({ signal }) {
       <div className="flex flex-col gap-2">
         <h4 className="m-0 text-headline-sm font-semibold text-ink-strong">{signal.name}</h4>
         {signal.note && <p className="m-0 text-body-sm text-ink-muted">{signal.note}</p>}
-        <div className="mt-2 flex gap-2">
-          <span className="label-caps rounded bg-line px-2 py-1 text-ink-muted">
-            Severity: {band}
-          </span>
-          <span className="label-caps rounded bg-line px-2 py-1 text-ink-muted">
-            {signal.severity.toFixed(2)}
-          </span>
-        </div>
+        {/* A bare 0.78 is a number the reasoning layer produced for itself,
+            against no scale anyone outside this project could calibrate. It
+            belongs with the other measurements, not next to the prose. */}
+        {technical && (
+          <div className="mt-2 flex gap-2">
+            <span className="label-caps rounded bg-line px-2 py-1 text-ink-muted">
+              Severity: {band}
+            </span>
+            <span className="label-caps rounded bg-line px-2 py-1 text-ink-muted">
+              {signal.severity.toFixed(2)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -299,7 +340,7 @@ function NoExplanation({ onRetry }) {
   )
 }
 
-function BlendCard({ result, reasoning, degraded, isFake, onRestart }) {
+function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart }) {
   return (
     <div className="flex h-full flex-col gap-4 rounded-xl border border-line bg-paper p-6 shadow-ambient">
       <div className="mb-2 flex items-center gap-2">
@@ -312,30 +353,57 @@ function BlendCard({ result, reasoning, degraded, isFake, onRestart }) {
       <p className="m-0 border-l-2 border-outline-variant pl-3 text-body-sm text-ink-muted italic">
         {degraded
           ? "When the reasoning layer's reply cannot be read, VeraLens excludes it from the blend entirely rather than treating an unreadable answer as a score. What is left is the classifier at full weight."
-          : "The number on this page is not the classifier's alone. It is 0.55 of the classifier plus 0.45 of the reasoning layer — and only the classifier has ever been measured as a detector."}
+          : technical
+            ? "The number on this page is not the classifier's alone. It is 0.55 of the classifier plus 0.45 of the reasoning layer — and only the classifier has ever been measured as a detector."
+            : "Two things looked at this photo: a detector, and a language model that explains. The number above is mostly the detector's — and only the detector has ever been tested at telling real from fake."}
       </p>
 
-      <div className="mt-4 flex w-full flex-col gap-2">
-        <Row
-          label="Classifier"
-          value={`${degraded ? '1.00' : W_CLASSIFIER.toFixed(2)} · ${percent(result.classifier_score)}`}
-        />
-        <Row
-          label="Reasoning layer"
-          value={degraded ? 'Excluded' : `${W_REASONING.toFixed(2)} · ${percent(reasoning)}`}
-        />
-        <Row
-          label={degraded ? 'Final' : 'Fused'}
-          value={percent(result.fake_probability)}
-          valueClass={isFake ? 'font-bold text-error' : 'font-bold text-sage-ink'}
-          labelClass="font-semibold text-ink-strong"
-        />
-        <Row
-          label="Verdict"
-          value={`${isFake ? 'Above' : 'Below'} 0.50 → ${isFake ? 'Fake' : 'Real'}`}
-          last
-        />
-      </div>
+      {/* The weights, the recovered reasoning score and the threshold
+          arithmetic are the apparatus of the decision. Plain replaces the whole
+          table with the one fact it establishes; nothing here is hidden that
+          technical does not show in full. */}
+      {technical ? (
+        <div className="mt-4 flex w-full flex-col gap-2">
+          <Row
+            label="Classifier"
+            value={`${degraded ? '1.00' : W_CLASSIFIER.toFixed(2)} · ${percent(result.classifier_score)}`}
+          />
+          <Row
+            label="Reasoning layer"
+            value={degraded ? 'Excluded' : `${W_REASONING.toFixed(2)} · ${percent(reasoning)}`}
+          />
+          <Row
+            label={degraded ? 'Final' : 'Fused'}
+            value={percent(result.fake_probability)}
+            valueClass={isFake ? 'font-bold text-error' : 'font-bold text-sage-ink'}
+            labelClass="font-semibold text-ink-strong"
+          />
+          <Row
+            label="Verdict"
+            value={`${isFake ? 'Above' : 'Below'} 0.50 → ${isFake ? 'Fake' : 'Real'}`}
+            last
+          />
+
+          {/* Headed, because "Classifier" means a weight in the rows above and
+              a model name in the rows below, and an unbroken table of the two
+              reads as though EfficientNet-B4 scored 0.55. */}
+          <h3 className="label-caps m-0 mt-4 mb-1 text-ink-muted">On the inference path</h3>
+          {MODELS.map((model, index) => (
+            <Row
+              key={model.role}
+              label={model.role}
+              value={model.name}
+              last={index === MODELS.length - 1}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="m-0 mt-2 text-body-md text-ink">
+          {degraded
+            ? `The detector alone put this at ${percent(result.fake_probability, 0)} likely to be generated, which is ${isFake ? 'enough' : 'not enough'} to call it ${isFake ? 'fake' : 'real'}.`
+            : `Together they put this at ${percent(result.fake_probability, 0)} likely to be generated, which is ${isFake ? 'enough' : 'not enough'} to call it ${isFake ? 'fake' : 'real'}.`}
+        </p>
+      )}
 
       <div className="mt-auto pt-6">
         <button

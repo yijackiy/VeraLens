@@ -28,6 +28,14 @@ _Avoid_: attention map, activation map, bare "heatmap"
 Combining the classifier's Fake Probability with the reasoning layer's independent Verdict into one final judgement.
 _Avoid_: ensemble, voting, blending
 
+**Analysis**:
+One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis.
+_Avoid_: result, report, scan, detection
+
+**Explanation Register**:
+Which of the two presentations of one Analysis is showing: **Plain**, what the reasoning layer said in its own words, or **Technical**, every measurement behind the Verdict. Plain is a strict reduction of Technical — nothing appears in Plain that Technical omits — and neither register changes a Verdict, a Fake Probability, or the disclosure of who wrote the explanation.
+_Avoid_: mode, view, detail level, expert mode
+
 ## Data
 
 **Training Split**:

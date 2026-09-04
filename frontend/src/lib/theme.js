@@ -10,6 +10,8 @@
  * room is bright should not silently flip when the OS switches at sunset.
  */
 
+import { readStored, writeStored } from './storage'
+
 export const STORAGE_KEY = 'veralens.theme'
 
 export const PREFERENCES = ['system', 'light', 'dark']
@@ -40,26 +42,12 @@ export function nextPreference(resolvedTheme) {
   return resolvedTheme === 'dark' ? 'light' : 'dark'
 }
 
-/**
- * Storage access is wrapped because it throws outright — not returns null —
- * in a Safari private window and under a blocked-cookies policy. A viewer
- * who cannot store a preference should still get a working theme.
- */
 export function readPreference(storage) {
-  try {
-    return normalisePreference(storage?.getItem(STORAGE_KEY))
-  } catch {
-    return 'system'
-  }
+  return readStored(storage, STORAGE_KEY, PREFERENCES, 'system')
 }
 
 export function writePreference(storage, preference) {
-  try {
-    storage?.setItem(STORAGE_KEY, normalisePreference(preference))
-    return true
-  } catch {
-    return false
-  }
+  return writeStored(storage, STORAGE_KEY, preference, PREFERENCES, 'system')
 }
 
 /**
