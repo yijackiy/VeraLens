@@ -1,6 +1,11 @@
+// `bg-sage` with white on it measured 3.78:1 — under AA for a 16px semibold
+// label, and the 3:1 large-text allowance does not reach it. sage-deep is
+// 6.44:1 and was already the hover colour, so the pair just steps down one.
+// `text-on-sage` rather than `text-white`: in dark mode the primary surface
+// is the light sage tone and needs near-black on it.
 const VARIANTS = {
   primary:
-    'bg-sage text-white shadow-sage hover:bg-sage-deep disabled:opacity-50 disabled:cursor-not-allowed',
+    'bg-sage-deep text-on-sage shadow-sage hover:bg-sage-ink disabled:opacity-50 disabled:cursor-not-allowed',
   secondary:
     'border border-outline text-ink hover:bg-container-high disabled:opacity-50 disabled:cursor-not-allowed',
   quiet:

@@ -59,7 +59,7 @@ export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection }) {
                 the face was generated, and explain why it decided that.
               </p>
 
-              <span className="inline-flex items-center justify-center rounded-lg bg-sage px-8 py-3 text-body-md font-semibold text-white shadow-sage">
+              <span className="inline-flex items-center justify-center rounded-lg bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage">
                 Select photo
               </span>
 
@@ -115,7 +115,7 @@ export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection }) {
             className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
           >
             <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
-              <Icon name="photo_camera" className="text-slate" />
+              <Icon name="photo_camera" className="text-ink-muted" />
             </div>
             <div>
               <h3 className="m-0 text-body-md font-semibold text-ink-strong">Use camera</h3>

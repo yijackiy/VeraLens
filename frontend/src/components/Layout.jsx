@@ -1,4 +1,5 @@
 import { Icon } from './Icon'
+import { ThemeToggle } from './ThemeToggle'
 
 /** Shared chrome. `width` follows the artboards: the verdict pages run wider
  *  than the upload pages, and the waiting page is narrower than both. */
@@ -45,14 +46,21 @@ function Header({ width, onHome, onHelp }) {
             Upload
           </button>
         </nav>
-        <button
-          type="button"
-          onClick={onHelp}
-          aria-label="How this works"
-          className="flex cursor-pointer items-center border-none bg-transparent text-ink-muted hover:text-terracotta"
-        >
-          <Icon name="help_outline" />
-        </button>
+        {/* Both controls carry a 44px box. The help button was a bare glyph
+            with no padding until the theme toggle landed beside it — two
+            adjacent controls of visibly different target size read as a bug
+            before they read as an accessibility problem. */}
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={onHelp}
+            aria-label="How this works"
+            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-ink-muted hover:bg-container-high hover:text-terracotta-ink"
+          >
+            <Icon name="help_outline" size={22} />
+          </button>
+        </div>
       </div>
     </header>
   )

@@ -134,7 +134,7 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed }) {
                   style={{ width: `${Math.min(100, Math.max(0, probability * 100))}%` }}
                 />
               </div>
-              <div className="absolute -top-[5px] left-1/2 h-[18px] w-0.5 rounded-sm bg-slate opacity-60" />
+              <div className="absolute -top-[5px] left-1/2 h-[18px] w-0.5 rounded-sm bg-ink opacity-60" />
             </div>
             <div className="label-caps mt-2.5 grid grid-cols-3 gap-2 text-outline">
               <span className="text-left">0 · certainly real</span>
@@ -207,7 +207,7 @@ function Explanation({ result }) {
     <>
       <div className="flex items-start gap-4 rounded-xl bg-container-high px-6 py-5">
         <Icon name="info" className="mt-0.5 text-ink-muted" size={22} />
-        <p className="m-0 text-body-sm text-slate">
+        <p className="m-0 text-body-sm text-ink-muted">
           Qwen3‑VL‑2B wrote all of this <em>after</em> being told the verdict, and it supplies 45%
           of the fused number above. Measured on its own it separates real from fake no better than
           a coin toss — so read this as an account of the decision, not as independent evidence for
@@ -246,7 +246,7 @@ function SignalCard({ signal }) {
           strong ? 'bg-error-container/40' : 'bg-container-high'
         }`}
       >
-        <Icon name={signalIcon(signal.name)} className={strong ? 'text-terracotta' : 'text-slate'} />
+        <Icon name={signalIcon(signal.name)} className={strong ? 'text-terracotta' : 'text-ink-muted'} />
       </div>
       <div className="flex flex-col gap-2">
         <h4 className="m-0 text-headline-sm font-semibold text-ink-strong">{signal.name}</h4>
@@ -286,7 +286,7 @@ function NoExplanation({ onRetry }) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage px-8 py-3 text-body-md font-semibold text-white shadow-sage hover:bg-sage-deep"
+        className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
       >
         <Icon name="refresh" size={20} />
         Try this photo again

@@ -15,6 +15,11 @@
    Warmth & Wisdom — the design system in Frontend Design/warmth_wisdom/DESIGN.md.
    These tokens are the single source of truth; the nine artboards hard-coded
    the same hex values inline, and four of them had already drifted apart.
+
+   The block below is the LIGHT theme. Dark redefines the same names further
+   down rather than introducing a parallel set — see ADR 0009 for why `paper`
+   is nearly black in dark mode. Nothing outside this file names a colour, so
+   a theme is 30 lines of values rather than ~400 edited call sites.
    --------------------------------------------------------------------------- */
 @theme {
   /* Neutrals — a warm cream ground with tonal container tiers above it */
@@ -25,7 +30,10 @@
   --color-container: #f0eded;
   --color-container-high: #eae7e7;
   --color-line: #e4e2e1;
-  --color-outline: #737879;
+  /* Darkened from #737879, which measured 4.48:1 on paper and 4.27:1 on
+     surface — under AA for the caveat lines and scale labels that carry the
+     honesty disclaimers. 4.95:1 and 4.73:1 respectively. */
+  --color-outline: #6c7172;
   --color-outline-variant: #c3c7c8;
 
   /* Ink */
@@ -39,9 +47,16 @@
   --color-sage-deep: #526351;
   --color-sage-ink: #3a4b3b;
   --color-sage-tint: #e8eee7;
+  /* What is legible ON a sage fill. White in light; a near-black green in
+     dark, where the primary surface is the light tone rather than the deep
+     one. Buttons say text-on-sage, never text-white, so the pair travels. */
+  --color-on-sage: #ffffff;
 
-  /* Terracotta — fake, and anything that needs attention without alarm */
-  --color-terracotta: #d68e5e;
+  /* Terracotta — fake, and anything that needs attention without alarm.
+     Darkened from #d68e5e, which measured 2.66:1 on paper — under the 3:1
+     floor for meaningful non-text (the verdict icon, the fake half of the
+     probability bar). 3.38:1 on paper, 3.22:1 on surface. */
+  --color-terracotta: #c47a47;
   --color-terracotta-tint: #ffdbc7;
   --color-terracotta-ink: #6e3910;
   --color-terracotta-deep: #5f2d04;
@@ -81,6 +96,82 @@
   --shadow-sage: 0 2px 10px rgba(118, 136, 117, 0.3);
 }
 
+/* Values the utilities above cannot express: an inline SVG data URI and two
+   translucent fills. Same treatment as the colours — named once, revalued
+   per theme, never restated at a call site. */
+:root {
+  color-scheme: light;
+  --texture-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23dcd9d9' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme.
+
+   Applied only under an explicit data-theme="dark" on <html>. The operating
+   system's preference is resolved to an explicit value by the boot script in
+   index.html and kept in sync by useTheme — so this file needs one dark block
+   rather than the same thirty lines repeated inside a prefers-color-scheme
+   query. The app is React and does not render without JavaScript, so nothing
+   is lost by resolving the theme there.
+
+   Warm-neutral, not blue-black: the ground stays on the same hue family as
+   the cream it replaces. Every text pair below clears 4.5:1 against the
+   surface it sits on and every meaningful non-text pair clears 3:1 —
+   tokens.contrast.test.js asserts it rather than trusting this comment.
+   --------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-surface: #171615;
+  --color-cream: #232120;
+  --color-paper: #211f1e;
+  --color-tint: #2a2726;
+  --color-container: #2b2928;
+  --color-container-high: #343130;
+  --color-line: #3a3736;
+  --color-outline: #8f8985;
+  --color-outline-variant: #57524f;
+
+  --color-ink: #f2eeea;
+  --color-ink-strong: #fbf8f5;
+  --color-ink-muted: #b9b2ac;
+  /* `slate` is deliberately NOT redefined. Every remaining use of it is the
+     dark well behind a photo, a video frame or a saliency map, plus the modal
+     scrim — a photo well should be dark in both themes, and flipping it would
+     put a light box around every image. The three places slate was carrying
+     body text moved to ink-muted when this branch landed. */
+
+  /* sage-deep is the primary button surface in both themes. In light that is
+     the darker tone with white on it; in dark it inverts to the lighter tone
+     with near-black on it, which is why on-sage exists. sage-ink stays the
+     hover step in each direction. */
+  --color-sage: #9dba9b;
+  --color-sage-deep: #9dba9b;
+  --color-sage-ink: #b8cfb6;
+  --color-sage-tint: #2a332a;
+  --color-on-sage: #16210f;
+
+  --color-terracotta: #e8a97a;
+  --color-terracotta-tint: #4a2a16;
+  --color-terracotta-ink: #ffdcc4;
+  --color-terracotta-deep: #ffe8d8;
+
+  --color-error: #ffb4ab;
+  --color-error-container: #5c1a14;
+
+  /* Depth reads as absence of light on a dark ground, so the same geometry
+     needs a heavier alpha to register at all. */
+  --shadow-ambient: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-sage: 0 2px 10px rgba(0, 0, 0, 0.5);
+
+  --texture-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f2eeea' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  --glass-bg: rgba(23, 22, 21, 0.92);
+  --glass-border: rgba(143, 137, 133, 0.35);
+}
+
 @layer base {
   html {
     background-color: var(--color-surface);
@@ -96,6 +187,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Sage-deep is invisible against a dark ground, so the ring follows the
+     theme like everything else. Offset keeps it clear of the control's own
+     border on both. */
   :focus-visible {
     outline: 2px solid var(--color-sage-deep);
     outline-offset: 2px;
@@ -112,13 +206,13 @@
 }
 
 @utility bg-texture {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23dcd9d9' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-image: var(--texture-image);
 }
 
 @utility glass {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--glass-border);
 }
 
 @layer components {
