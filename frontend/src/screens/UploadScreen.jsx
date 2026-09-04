@@ -12,7 +12,15 @@ import { useBackendStatus } from '../hooks/useBackendStatus'
  * that InsightFace refuses to detect, so the card would hand people a
  * guaranteed "no face found".
  */
-export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection, held, onAbandonHeld }) {
+export function UploadScreen({
+  onFile,
+  onUseCamera,
+  onCompareTwo,
+  onHowItWorks,
+  rejection,
+  held,
+  onAbandonHeld,
+}) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const backend = useBackendStatus()
@@ -131,19 +139,35 @@ export function UploadScreen({ onFile, onUseCamera, onHowItWorks, rejection, hel
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={onUseCamera}
-            className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
-          >
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
-              <Icon name="photo_camera" className="text-ink-muted" />
-            </div>
-            <div>
-              <h3 className="m-0 text-body-md font-semibold text-ink-strong">Use camera</h3>
-              <p className="m-0 mt-0.5 text-body-sm text-ink-muted">Take one still photo</p>
-            </div>
-          </button>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={onUseCamera}
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
+            >
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
+                <Icon name="photo_camera" className="text-ink-muted" />
+              </div>
+              <div>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Use camera</h3>
+                <p className="m-0 mt-0.5 text-body-sm text-ink-muted">Take one still photo</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={onCompareTwo}
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
+            >
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
+                <Icon name="compare" className="text-ink-muted" />
+              </div>
+              <div>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Compare two</h3>
+                <p className="m-0 mt-0.5 text-body-sm text-ink-muted">Pick both photos at once</p>
+              </div>
+            </button>
+          </div>
         </section>
       </div>
     </Page>

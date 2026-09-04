@@ -41,7 +41,7 @@ const STAGES = [
   },
 ]
 
-export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks }) {
+export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks, queuedName }) {
   const currentIndex = STAGES.findIndex((stage) => elapsed < stage.endsAt)
 
   return (
@@ -62,6 +62,20 @@ export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks }) {
             </span>
             <span className="font-mono text-data-mono font-medium text-outline">{fileName}</span>
           </div>
+
+          {/* Without this a two-photo run looks exactly like a one-photo run,
+              and the second wait arrives as a surprise. They queue rather than
+              overlap — there is one graphics card. */}
+          {queuedName && (
+            <div className="mb-4 flex items-start gap-3.5 rounded-xl bg-sage-tint px-5 py-4">
+              <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
+              <p className="m-0 text-body-sm text-sage-ink">
+                This is photo A.{' '}
+                <span className="font-semibold">{queuedName}</span> is queued behind it and starts
+                once this one finishes — you will see this verdict while it runs.
+              </p>
+            </div>
+          )}
 
           <button
             type="button"
