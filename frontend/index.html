@@ -6,6 +6,30 @@
     <meta name="description" content="Explainable deepfake photo detection: a pretrained classifier, a saliency map, and a reasoning layer that explains the verdict." />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VeraLens — explainable deepfake photo detection</title>
+    <!--
+      Resolves the theme before first paint. Without it the page renders light
+      and then flips, which on a verdict screen means a white flash in a dark
+      room at exactly the moment someone is reading a result.
+
+      This duplicates STORAGE_KEY and the resolution rule from src/lib/theme.js
+      on purpose: it has to run before the bundle exists, so it cannot import
+      them. If the key changes there, it changes here.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('veralens.theme')
+          var preference = stored === 'light' || stored === 'dark' ? stored : 'system'
+          var dark =
+            preference === 'dark' ||
+            (preference === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+        } catch (error) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
