@@ -1,3 +1,4 @@
+import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { RegisterToggle } from '../components/RegisterToggle'
@@ -175,6 +176,8 @@ function AnalysisCard({ side, technical }) {
           <span className="label-caps tracking-[0.12em] text-ink-strong">Saliency Map</span>
         </div>
       </div>
+
+      <FaceNotice result={result} scope="in this card" />
 
       <div className="grid grid-cols-2 gap-4">
         <Tile
