@@ -8,7 +8,8 @@ server holds the uploaded file on disk between the two, keyed by the token.
 
 The multi-face picker is why. Choosing a face is only meaningful *before*
 anything has been classified; after an Analysis exists, picking a different
-face is a re-run, and a re-run costs 15–90 seconds on this hardware. Detection
+face is a re-run, and a re-run costs a minute at the median and closer to three
+at p90 on this hardware. Detection
 is ~0.2s on CPU (ADR 0011), so splitting the pipeline at that seam buys a
 choice for almost nothing.
 
@@ -28,7 +29,7 @@ under the browser's control. A crop that arrives from outside is a crop nobody
 can vouch for.
 
 **Keep one request and analyse every face.** Honest, and hopeless: N faces is
-N × 15–90 seconds on a 4 GB card with a lock serialising the GPU path.
+N × a minute or more on a 4 GB card with a lock serialising the GPU path.
 
 ## Consequences
 
