@@ -9,6 +9,25 @@ import { formatClock } from '../lib/analysis'
  * running. Stages are marked from typical timing and the screen says so: the
  * marker reads "Expected now", never "Active". Making these real needs an SSE
  * or polling endpoint on the backend.
+ *
+ * Every duration here comes from the 600 recorded runs in
+ * results/ablation_records.jsonl and results/ablation_records_informed.jsonl
+ * (the `seconds` field), on this hardware. Re-derive them rather than
+ * adjusting by feel:
+ *
+ *   floor 40s · median 60s · p75 116s · p90 169s · p99 200s
+ *   48% exceed 60s · 36% exceed 90s · 20% exceed 120s · 5% exceed 180s
+ *
+ * The screen used to promise "between 60 and 90 seconds", which named the
+ * median as the floor and a figure a third of runs pass as the ceiling. The
+ * distribution is long-tailed, not a range, so the copy gives the middle and
+ * the tail separately — someone two minutes into a wait needs to know that is
+ * normal, not that the page is stuck.
+ *
+ * What drives the spread is not known. It is not explanation length:
+ * corr(seconds, explanation characters) = -0.37 across those runs, i.e. the
+ * slow runs write *shorter* answers. Do not write a cause into this copy
+ * without measuring one.
  */
 const STAGES = [
   {
@@ -34,7 +53,9 @@ const STAGES = [
   },
   {
     title: 'Writing the explanation',
-    typical: '10–80 sec',
+    // The whole distribution above, less the ~4 seconds the three stages
+    // before it take: 36s at the floor, ~165s at p90.
+    typical: '40 sec – 3 min',
     endsAt: Infinity,
     icon: 'auto_awesome',
     body: 'Qwen3‑VL‑2B reads the crop and the verdict, then writes a few sentences.',
@@ -52,8 +73,9 @@ export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks, que
             Looking at the photo
           </h1>
           <p className="m-0 mb-6 text-body-md text-ink-muted">
-            Four models run one after another on a single consumer graphics card, so this takes
-            between 60 and 90 seconds. Almost all of that is the last step.
+            Four models run one after another on a single consumer graphics card. Half of all
+            analyses finish inside a minute, but the spread is wide: about a third run past 90
+            seconds, and one in ten takes closer to three. Almost all of that is the last step.
           </p>
 
           <div className="mb-4 flex flex-wrap items-center gap-3">
