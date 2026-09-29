@@ -1,3 +1,4 @@
+import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { RegisterToggle } from '../components/RegisterToggle'
@@ -198,20 +199,12 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               {degraded
                 ? "This is the classifier's own number, unblended — the part of VeraLens measured at 97.5% accurate."
                 : isFake
-                  ? 'Fake Probability always points toward fake, whatever the verdict — a confident Real sits near zero, not near one.'
+                  ? 'Fake Probability always points toward fake, whatever the verdict — a confident Real sits near 0%, not near 100%.'
                   : 'Fake Probability always points toward fake, whatever the verdict — sitting this close to zero is what a confident Real looks like.'}
             </p>
           </div>
 
-          {result.faces_found > 1 && (
-            <div className="flex items-start gap-3.5 rounded-xl bg-terracotta-tint px-5 py-4">
-              <Icon name="groups" className="mt-0.5 text-terracotta-ink" size={22} />
-              <p className="m-0 text-body-sm text-terracotta-deep">
-                {result.faces_found} faces were found in this photo. VeraLens analysed the first one
-                only — everything on this page describes that face, not the others.
-              </p>
-            </div>
-          )}
+          <FaceNotice result={result} />
         </div>
 
         <div className="relative">
