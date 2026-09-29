@@ -5,6 +5,7 @@ import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
 import { rejectionReason } from './lib/analysis'
 import { comparisonOf, heldFrom } from './lib/comparison'
+import { recommendedFaceIndex } from './lib/faces'
 import { rotateAndCrop } from './lib/imageTransform'
 import { AnalyzingScreen } from './screens/AnalyzingScreen'
 import { ComparePickScreen } from './screens/ComparePickScreen'
@@ -47,8 +48,14 @@ import { VerdictScreen } from './screens/VerdictScreen'
  * is too short to be worth a state of its own — except when /detect finds
  * more than one face, which is what `face-pick` is for. The queued second
  * photo (compare-two-up-front) never reaches `face-pick`: there is no screen
- * free to interrupt into while photo A's verdict is on screen, so it silently
- * keeps the leftmost face, the same way the single-face path always did.
+ * free to interrupt into while photo A's verdict is on screen, so it takes
+ * the recommended face, the same way the single-face path always did.
+ *
+ * Which means a Comparison's two sides can reach the same screen by different
+ * routes: via ComparePickScreen, B is auto-picked while A was chosen; via
+ * hold-then-analyse, both were chosen. Neither screen claims which happened.
+ * Both name the face they describe instead, which is the fact that matters
+ * and the only one a stored Analysis can actually vouch for.
  *
  * `crop` is the only phase that runs before /detect rather than after a file
  * is chosen — it is reached only from the "Straighten first" card, and not
@@ -204,7 +211,9 @@ export default function App() {
           setPhase('face-pick')
           return
         }
-        await analyzeChosenFaceRef.current?.(subject, token, faces[0].index, { background })
+        await analyzeChosenFaceRef.current?.(subject, token, recommendedFaceIndex(faces), {
+          background,
+        })
       } catch (error) {
         if (error.kind === 'aborted') return
         setProblem({ kind: error.kind, detail: error.message })

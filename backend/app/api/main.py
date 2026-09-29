@@ -121,7 +121,7 @@ def analyze(token: str = Form(...), face_index: int = Form(...)):
         img = cv2.imread(path)
         crop = crop_face_from_bbox(img, faces[face_index]["bbox"])
         with _gpu_lock:
-            result = run_pipeline_from_crop(crop, len(faces))
+            result = run_pipeline_from_crop(crop, len(faces), face_index)
     finally:
         os.remove(path)
     return result

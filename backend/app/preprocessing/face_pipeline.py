@@ -60,12 +60,43 @@ def crop_face_from_bbox(img, bbox):
     return cv2.resize(crop, (224, 224))
 
 
+def recommended_face_index(faces) -> int:
+    """
+    Which Face Candidate VeraLens analyses when nobody chooses: the largest by
+    bbox area, ties broken by det_score.
+
+    Largest rather than leftmost because a photo with a subject and bystanders
+    usually frames the subject biggest, and never the other way round — but it
+    is a heuristic about framing, not about who the photo is of. A bystander
+    standing closer to the camera still wins. Nothing here has been measured;
+    see ADR 0012.
+
+    The tie-break matters more than it looks. This used to be expressed on the
+    frontend as `area == max(area)`, which is a predicate, not a choice: two
+    faces of equal area both satisfied it and the picker recommended both at
+    once. det_score breaks the tie with something about the faces rather than
+    about their arrangement in the frame, and it is already on every entry.
+    """
+    return max(
+        range(len(faces)),
+        key=lambda i: (
+            (faces[i]["bbox"][2] - faces[i]["bbox"][0])
+            * (faces[i]["bbox"][3] - faces[i]["bbox"][1]),
+            faces[i]["det_score"],
+        ),
+    )
+
+
 def detect_all_faces(image_path: str):
     """
     Returns (img, faces): the cv2-decoded image and one dict per detection —
-    {"bbox": [x1, y1, x2, y2], "det_score": float} — sorted left to right so
-    the picker's reading order matches the photo. (None, []) when the file
-    could not be decoded or nothing was found.
+    {"bbox": [x1, y1, x2, y2], "det_score": float} — sorted left to right.
+    (None, []) when the file could not be decoded or nothing was found.
+
+    The sort is reading order and nothing else: it makes the picker's numbered
+    boxes run the way the eye does across the photo. Which face gets analysed
+    is a separate question, answered by recommended_face_index() — index 0 is
+    the leftmost Face Candidate, not the default one.
 
     img is returned alongside the boxes so a caller that goes on to crop a
     chosen face (the multi-face picker's second request) does not decode the
@@ -85,8 +116,8 @@ def detect_all_faces(image_path: str):
 
 def detect_face(image_path: str):
     """
-    Returns (crop, face_count): the 224x224 Face Crop of the leftmost
-    detection, or (None, 0) when nothing was found.
+    Returns (crop, face_count, face_index): the 224x224 Face Crop of the
+    recommended detection, or (None, 0, 0) when nothing was found.
 
     The count is reported alongside the crop because "no face" and "three
     faces, we analysed one" are different situations for whoever submitted the
@@ -94,14 +125,20 @@ def detect_face(image_path: str):
     scripts, which have no picker and always want "the" face; the live API
     calls detect_all_faces() and crop_face_from_bbox() separately instead, so
     a chosen face can come from a second request.
+
+    Runs the same recommended_face_index() the picker highlights, so the face
+    analysed without a picker and the face offered by one are the same face.
+    This used to take faces[0] — the leftmost — which disagreed with what the
+    picker recommended on every photo where those differ.
     """
     img, faces = detect_all_faces(image_path)
     if img is None or not faces:
-        return None, 0
-    return crop_face_from_bbox(img, faces[0]["bbox"]), len(faces)
+        return None, 0, 0
+    index = recommended_face_index(faces)
+    return crop_face_from_bbox(img, faces[index]["bbox"]), len(faces), index
 
 
 def get_face_crop(image_path: str):
     """Crop only. Kept as-is for the evaluation scripts, which never need the count."""
-    crop, _ = detect_face(image_path)
+    crop, _, _ = detect_face(image_path)
     return crop

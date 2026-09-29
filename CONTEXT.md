@@ -8,9 +8,13 @@ VeraLens decides whether a photograph of a face was synthetically generated, and
 The complete photograph a person hands to VeraLens, before any face detection — chosen from a file or captured with the camera. One term covers both sources deliberately: the pipeline cannot distinguish them, and a Submitted Photo that never yields a Face Crop is not a Verdict of REAL, it is nothing at all.
 _Avoid_: upload, input image, source image, selfie
 
+**Face Candidate**:
+One face InsightFace found in a Submitted Photo, before anything has been classified. A photo yields as many Face Candidates as it has faces; exactly one of them becomes the Face Crop. The distinction is what makes choosing a face possible rather than a re-run — a Face Candidate costs nothing to discard, because nothing has been spent on it yet.
+_Avoid_: detection, box, bbox, face option, candidate face
+
 **Face Crop**:
-The 224×224 region containing one detected face, produced by InsightFace. The only input the classifier ever sees.
-_Avoid_: thumbnail, ROI, patch
+The 224×224 region containing one detected face, produced by InsightFace. The only input the classifier ever sees. There is one per Analysis, whoever picked it — a Face Crop chosen by hand and one taken by default are the same object.
+_Avoid_: thumbnail, ROI, patch, chosen face, analysed face
 
 **Fake Probability**:
 A scalar in [0,1] expressing how synthetic a Face Crop appears. Always oriented toward fake, never toward the predicted class — a confident REAL is a Fake Probability near 0, not near 1.

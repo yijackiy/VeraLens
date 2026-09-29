@@ -16,7 +16,7 @@ STATIC_DIR = os.path.normpath(os.path.join(APP_DIR, "..", "static"))
 HEATMAP_DIR = os.path.join(STATIC_DIR, "heatmaps")
 
 
-def run_pipeline_from_crop(crop_bgr, face_count: int) -> dict:
+def run_pipeline_from_crop(crop_bgr, face_count: int, face_index: int = 0) -> dict:
     """
     The half of the pipeline that runs once a Face Crop has been chosen:
     classifier + Grad-CAM -> free classifier VRAM -> Qwen3-VL reasoning ->
@@ -27,6 +27,11 @@ def run_pipeline_from_crop(crop_bgr, face_count: int) -> dict:
     run detection once, let the browser choose a face, and start this half
     only for the one that was chosen — a caller that already has a crop
     should not pay for a second detection pass.
+
+    face_index is recorded on the result, not used by it: an Analysis of a
+    four-face photo that cannot say which of the four it describes is an
+    incomplete record of its own run. It is 0-based, the same number /analyze
+    was called with — the interface adds the 1 when it names a face on screen.
     """
     started = time.perf_counter()
 
@@ -46,6 +51,7 @@ def run_pipeline_from_crop(crop_bgr, face_count: int) -> dict:
     result = fuse(classifier_result["fake_score"], llm_result)
     result["heatmap_url"] = f"/static/heatmaps/{heatmap_filename}"
     result["faces_found"] = face_count
+    result["face_index"] = face_index
     # Measured, not estimated. The interface cannot report progress while the
     # pipeline runs (one blocking response), so the honest thing it can show
     # afterwards is how long this particular photo actually took.
@@ -55,13 +61,13 @@ def run_pipeline_from_crop(crop_bgr, face_count: int) -> dict:
 
 def run_full_pipeline(image_path: str) -> dict:
     """
-    End-to-end from a raw image path: detects the leftmost face and runs
+    End-to-end from a raw image path: detects the recommended face and runs
     run_pipeline_from_crop() on it. Used by the evaluation scripts, which have
     no picker and always want "the" face in one call; the live API calls
     face_pipeline.detect_all_faces() and run_pipeline_from_crop() separately
     instead, so a face chosen in the browser can come from a second request.
     """
-    crop_bgr, face_count = detect_face(image_path)
+    crop_bgr, face_count, face_index = detect_face(image_path)
     if crop_bgr is None:
         return {"error": "no_face_detected"}
-    return run_pipeline_from_crop(crop_bgr, face_count)
+    return run_pipeline_from_crop(crop_bgr, face_count, face_index)
