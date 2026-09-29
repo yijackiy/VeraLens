@@ -1,3 +1,4 @@
+import { DrawsPanel } from '../components/DrawsPanel'
 import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
@@ -34,6 +35,7 @@ export function VerdictScreen({
   onCompare,
   onHowItWorks,
   pending,
+  draws,
 }) {
   const isFake = result.final_verdict === 'fake'
   const degraded = !result.explanation_available
@@ -117,6 +119,20 @@ export function VerdictScreen({
           />
         </div>
       </div>
+
+      {/* Absent while photo B of a Comparison is running: the graphics card is
+          busy with B, and a Draw would queue behind it for minutes. */}
+      {draws && (
+        <DrawsPanel
+          analysis={result}
+          entries={draws.entries}
+          inFlight={draws.inFlight}
+          elapsed={draws.elapsed}
+          technical={technical}
+          onDrawAgain={draws.onDrawAgain}
+          onCancel={draws.onCancel}
+        />
+      )}
     </Page>
   )
 }
@@ -361,7 +377,9 @@ function NoExplanation({ onRetry }) {
       {/* The design offered "Ask for the explanation again", which would need an
           endpoint that re-runs the reasoning layer over a cached crop. There
           isn't one: this re-runs the whole pipeline, and says so. */}
-      <p className="label-caps m-0 mt-5 text-outline">Runs the whole pipeline again · 60–90 sec</p>
+      <p className="label-caps m-0 mt-5 text-outline">
+        Runs the whole pipeline again · about a minute, sometimes three
+      </p>
     </div>
   )
 }

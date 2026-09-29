@@ -33,8 +33,12 @@ Combining the classifier's Fake Probability with the reasoning layer's independe
 _Avoid_: ensemble, voting, blending
 
 **Analysis**:
-One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis.
+One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis. Its Verdict and explanation come from its first Draw; later Draws add evidence about that Verdict without replacing it.
 _Avoid_: result, report, scan, detection
+
+**Draw**:
+One run of the reasoning layer against an Analysis's fixed Face Crop, counting its internal parse retries as part of the one Draw. The reasoning layer samples, so two Draws of the same face can cite different signals, word the explanation differently, or fail to produce one at all. Only the reasoning layer's contribution differs between Draws; a Draw whose classifier Fake Probability differs from its Analysis's is not a Draw of that Analysis.
+_Avoid_: re-run, sample, retry, attempt, replicate
 
 **Held Analysis**:
 The one Analysis parked aside while a second photo is submitted, so the two can be read together. Exactly one is ever held; it lives in the browser for as long as the tab does and is never stored. Holding is what turns the next submission into the second half of a Comparison rather than a fresh start.
