@@ -5,6 +5,7 @@ import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
 import { rejectionReason } from './lib/analysis'
 import { comparisonOf, heldFrom } from './lib/comparison'
+import { canDrawAgain, drawsOf, isDrawOf } from './lib/draws'
 import { recommendedFaceIndex } from './lib/faces'
 import { rotateAndCrop } from './lib/imageTransform'
 import { AnalyzingScreen } from './screens/AnalyzingScreen'
@@ -97,6 +98,26 @@ export default function App() {
   // token, and the faces it found. Read once, by whichever face is chosen.
   const [detected, setDetected] = useState(null)
 
+  // Draws of the Analysis on the verdict screen (CONTEXT.md, "Draw"). Draw 1
+  // is `result` itself; these are the later attempts, each one of
+  // { status: 'drawn' | 'mismatch' | 'failed', result?, detail? } — only
+  // 'drawn' ones count, see lib/draws.js. They belong to the one Analysis on
+  // screen and go when it does: a new Analysis, restarting, or holding it
+  // for a Comparison (which carries the Analysis as first shown) all clear
+  // them.
+  const [drawEntries, setDrawEntries] = useState([])
+  const [drawStartedAt, setDrawStartedAt] = useState(null)
+  const drawAbortRef = useRef(null)
+  const drawIdRef = useRef(0)
+  const drawElapsed = useElapsed(drawStartedAt)
+
+  const clearDraws = useCallback(() => {
+    drawAbortRef.current?.abort()
+    drawAbortRef.current = null
+    setDrawStartedAt(null)
+    setDrawEntries([])
+  }, [])
+
   // One object URL at a time. The browser holds the only copy of the submitted
   // photo — the backend keeps the Face Crop and the heatmap, never the original.
   const adopt = useCallback((file, fromCamera) => {
@@ -140,6 +161,7 @@ export default function App() {
         setResult(null)
         setProblem(null)
         setPhase('analyzing')
+        clearDraws()
       }
       setDetected(null)
       // The clock starts here, not when /detect was sent — a demo timing a
@@ -151,7 +173,13 @@ export default function App() {
       abortRef.current = controller
 
       try {
-        const analysis = await analyzeFace(token, faceIndex, { signal: controller.signal })
+        // The backend echoes face_index (ADR 0012); a backend started before
+        // that change does not, and the browser knows the answer anyway —
+        // it just sent it. The response wins wherever it has one.
+        const analysis = {
+          face_index: faceIndex,
+          ...(await analyzeFace(token, faceIndex, { signal: controller.signal })),
+        }
         const second = queuedRef.current
 
         if (second) {
@@ -180,7 +208,7 @@ export default function App() {
         abortRef.current = null
       }
     },
-    [adopt, hold],
+    [adopt, hold, clearDraws],
   )
   useEffect(() => {
     analyzeChosenFaceRef.current = analyzeChosenFace
@@ -232,6 +260,7 @@ export default function App() {
 
   const restart = useCallback(() => {
     abortRef.current?.abort()
+    clearDraws()
     camera.stop()
     setPhoto((previous) => {
       if (previous) URL.revokeObjectURL(previous.url)
@@ -248,7 +277,7 @@ export default function App() {
     setProblem(null)
     setRejection(null)
     setPhase('idle')
-  }, [camera, hold])
+  }, [camera, clearDraws, hold])
 
   /**
    * Both photos at once. The queue is what makes the first response route to
@@ -271,12 +300,74 @@ export default function App() {
    */
   const startComparison = useCallback(() => {
     if (!photo || !result) return
+    // A Comparison compares Verdicts, and Draws never change a Verdict — so
+    // the held Analysis travels as first shown and its Draws stay here.
+    clearDraws()
     hold(heldFrom(photo, result))
     setPhoto(null)
     setResult(null)
     setRejection(null)
     setPhase('idle')
-  }, [hold, photo, result])
+  }, [clearDraws, hold, photo, result])
+
+  /**
+   * Ask the reasoning layer again about the Analysis on screen.
+   *
+   * Re-submits the photo rather than calling a draw-only endpoint: the upload
+   * is gone after /analyze (ADR 0012's token is single-use), and a second
+   * held-state store on the server buys nothing the check below does not.
+   * The classifier and detector re-run too — both deterministic — so the
+   * result is only a Draw of this Analysis if its classifier score matches.
+   * If it does not, the page says so instead of presenting a different face,
+   * or a different measurement, as variance.
+   *
+   * The picker is skipped: the face was chosen when the Analysis was made,
+   * and a Draw asks again about that face, not about the photo.
+   */
+  const drawAgain = useCallback(async () => {
+    if (!photo || !result) return
+    if (!canDrawAgain(drawsOf(result, drawEntries), drawAbortRef.current !== null)) return
+
+    const analysis = result
+    const id = ++drawIdRef.current
+    const controller = new AbortController()
+    drawAbortRef.current = controller
+    setDrawStartedAt(performance.now())
+
+    try {
+      const { token } = await detectFaces(photo.file, { signal: controller.signal })
+      const candidate = await analyzeFace(token, analysis.face_index ?? 0, {
+        signal: controller.signal,
+      })
+      // Aborted after the response had already landed — restart, hold, or a
+      // new Analysis. The Analysis this was a Draw of is gone, and its entry
+      // must not appear under whichever one replaced it.
+      if (controller.signal.aborted) return
+      setDrawEntries((previous) => [
+        ...previous,
+        { id, status: isDrawOf(analysis, candidate) ? 'drawn' : 'mismatch', result: candidate },
+      ])
+    } catch (error) {
+      // A request that failed produced no Draw, so it is shown but not
+      // counted — unlike a Draw that ran and produced no explanation.
+      if (error.kind !== 'aborted') {
+        setDrawEntries((previous) => [...previous, { id, status: 'failed', detail: error.message }])
+      }
+    } finally {
+      if (drawAbortRef.current === controller) {
+        drawAbortRef.current = null
+        setDrawStartedAt(null)
+      }
+    }
+  }, [photo, result, drawEntries])
+
+  /** Stops waiting for a Draw. The GPU finishes it regardless — the same
+   *  honest limit the wait screen states — so this only closes the page on it. */
+  const cancelDraw = useCallback(() => {
+    drawAbortRef.current?.abort()
+    drawAbortRef.current = null
+    setDrawStartedAt(null)
+  }, [])
 
   /** Give up on the second photo and go back to the first one's verdict. */
   const abandonComparison = useCallback(() => {
@@ -464,6 +555,13 @@ export default function App() {
         <VerdictScreen
           result={result}
           previewUrl={photo?.url}
+          draws={{
+            entries: drawEntries,
+            inFlight: drawStartedAt !== null,
+            elapsed: drawElapsed,
+            onDrawAgain: drawAgain,
+            onCancel: cancelDraw,
+          }}
           onRestart={restart}
           onRetry={() => photo && runAnalysis(photo)}
           onCompare={startComparison}
