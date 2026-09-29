@@ -5,7 +5,10 @@ import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { Sidebar, FILE_GUIDANCE } from '../components/Sidebar'
 import { useBackendStatus } from '../hooks/useBackendStatus'
+import { useCamera } from '../hooks/useCamera'
 import { rejectionReason } from '../lib/analysis'
+import { CameraBlockedScreen } from './CameraBlockedScreen'
+import { CameraScreen } from './CameraScreen'
 
 /**
  * Screen 11 — both photos up front.
@@ -19,11 +22,23 @@ import { rejectionReason } from '../lib/analysis'
  * What it does not do is make anything faster. There is one graphics card and
  * the backend takes one analysis at a time, so the two run strictly in
  * sequence — the screen says so rather than implying a batch.
+ *
+ * Either slot can be filled by file or by camera — its own useCamera()
+ * instance, entirely separate from the single-photo flow's. A capture drops
+ * straight into the slot as its preview; there is no separate confirm-photo
+ * screen here because the slot itself, with its remove button, already is one.
  */
 export function ComparePickScreen({ onAnalyseBoth, onSinglePhoto, onHowItWorks }) {
   const [slots, setSlots] = useState({ a: null, b: null })
   const [rejection, setRejection] = useState(null)
   const backend = useBackendStatus()
+
+  // A second, independent camera — this screen's own, separate from the one
+  // the single-photo flow uses in App.jsx. Which slot it is filling; null
+  // means the normal two-slot layout below is what's on screen.
+  const [cameraTarget, setCameraTarget] = useState(null)
+  const [blockReason, setBlockReason] = useState(null)
+  const camera = useCamera()
 
   // The previews are object URLs and this screen owns them: they are revoked
   // when a slot is replaced, when the screen closes, and never after being
@@ -62,6 +77,56 @@ export function ComparePickScreen({ onAnalyseBoth, onSinglePhoto, onHowItWorks }
 
   const ready = Boolean(slots.a && slots.b)
 
+  const openCameraFor = useCallback(
+    async (key) => {
+      setRejection(null)
+      const outcome = await camera.start()
+      setBlockReason(outcome.ok ? null : outcome.reason)
+      setCameraTarget(key)
+    },
+    [camera],
+  )
+
+  const cancelCamera = useCallback(() => {
+    camera.stop()
+    setCameraTarget(null)
+    setBlockReason(null)
+  }, [camera])
+
+  const onCapture = useCallback(
+    async (video) => {
+      const file = await camera.capture(video)
+      if (!file) return
+      camera.stop()
+      const key = cameraTarget
+      setCameraTarget(null)
+      put(key, file)
+    },
+    [camera, cameraTarget, put],
+  )
+
+  if (cameraTarget && blockReason) {
+    return (
+      <CameraBlockedScreen
+        reason={blockReason}
+        onChooseFile={cancelCamera}
+        onRetry={() => openCameraFor(cameraTarget)}
+        onHowItWorks={onHowItWorks}
+      />
+    )
+  }
+
+  if (cameraTarget) {
+    return (
+      <CameraScreen
+        stream={camera.stream}
+        onCapture={onCapture}
+        onCancel={cancelCamera}
+        onHowItWorks={onHowItWorks}
+      />
+    )
+  }
+
   return (
     <Page onHome={onSinglePhoto} onHelp={onHowItWorks}>
       <div className="flex flex-col gap-8 lg:flex-row">
@@ -89,8 +154,20 @@ export function ComparePickScreen({ onAnalyseBoth, onSinglePhoto, onHowItWorks }
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Slot label="A" slot={slots.a} onPick={(file) => put('a', file)} onClear={() => clear('a')} />
-            <Slot label="B" slot={slots.b} onPick={(file) => put('b', file)} onClear={() => clear('b')} />
+            <Slot
+              label="A"
+              slot={slots.a}
+              onPick={(file) => put('a', file)}
+              onClear={() => clear('a')}
+              onUseCamera={() => openCameraFor('a')}
+            />
+            <Slot
+              label="B"
+              slot={slots.b}
+              onPick={(file) => put('b', file)}
+              onClear={() => clear('b')}
+              onUseCamera={() => openCameraFor('b')}
+            />
           </div>
 
           {rejection && (
@@ -130,7 +207,7 @@ export function ComparePickScreen({ onAnalyseBoth, onSinglePhoto, onHowItWorks }
   )
 }
 
-function Slot({ label, slot, onPick, onClear }) {
+function Slot({ label, slot, onPick, onClear, onUseCamera }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
 
@@ -190,6 +267,18 @@ function Slot({ label, slot, onPick, onClear }) {
       <p className="m-0 max-w-[240px] text-body-sm text-ink-muted">
         Drag it here, or click to choose from your files.
       </p>
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onUseCamera()
+        }}
+        className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-transparent px-2 py-1 text-body-sm font-semibold text-ink-muted hover:text-terracotta-ink"
+      >
+        <Icon name="photo_camera" size={16} />
+        Use camera instead
+      </button>
 
       <input
         ref={inputRef}

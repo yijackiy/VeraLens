@@ -53,25 +53,52 @@ if _USE_CUDA and "CUDAExecutionProvider" not in _applied:
           "Check that onnxruntime-gpu matches torch's CUDA major version.")
 
 
-def detect_face(image_path: str):
-    """
-    Returns (crop, face_count): the 224x224 Face Crop of the first detection,
-    or (None, 0) when nothing was found.
+def crop_face_from_bbox(img, bbox):
+    """The 224x224 Face Crop for one bbox out of an image already read by cv2."""
+    x1, y1, x2, y2 = bbox
+    crop = img[max(0, y1):y2, max(0, x1):x2]
+    return cv2.resize(crop, (224, 224))
 
-    The count is reported alongside the crop because "no face" and "three
-    faces, we analysed one" are different situations for whoever submitted the
-    photo, and the interface words them differently. Only the first face is
-    ever analysed — that is unchanged.
+
+def detect_all_faces(image_path: str):
+    """
+    Returns (img, faces): the cv2-decoded image and one dict per detection —
+    {"bbox": [x1, y1, x2, y2], "det_score": float} — sorted left to right so
+    the picker's reading order matches the photo. (None, []) when the file
+    could not be decoded or nothing was found.
+
+    img is returned alongside the boxes so a caller that goes on to crop a
+    chosen face (the multi-face picker's second request) does not decode the
+    file a second time.
     """
     img = cv2.imread(image_path)
     if img is None:
-        return None, 0
+        return None, []
     faces = app.get(img)
-    if not faces:
+    boxes = [
+        {"bbox": [int(v) for v in f.bbox.astype(int)], "det_score": float(f.det_score)}
+        for f in faces
+    ]
+    boxes.sort(key=lambda f: f["bbox"][0])
+    return img, boxes
+
+
+def detect_face(image_path: str):
+    """
+    Returns (crop, face_count): the 224x224 Face Crop of the leftmost
+    detection, or (None, 0) when nothing was found.
+
+    The count is reported alongside the crop because "no face" and "three
+    faces, we analysed one" are different situations for whoever submitted the
+    photo, and the interface words them differently. Kept for the evaluation
+    scripts, which have no picker and always want "the" face; the live API
+    calls detect_all_faces() and crop_face_from_bbox() separately instead, so
+    a chosen face can come from a second request.
+    """
+    img, faces = detect_all_faces(image_path)
+    if img is None or not faces:
         return None, 0
-    x1, y1, x2, y2 = faces[0].bbox.astype(int)
-    crop = img[max(0, y1):y2, max(0, x1):x2]
-    return cv2.resize(crop, (224, 224)), len(faces)
+    return crop_face_from_bbox(img, faces[0]["bbox"]), len(faces)
 
 
 def get_face_crop(image_path: str):

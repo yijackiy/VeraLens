@@ -14,6 +14,7 @@ import { useBackendStatus } from '../hooks/useBackendStatus'
  */
 export function UploadScreen({
   onFile,
+  onFileForCrop,
   onUseCamera,
   onCompareTwo,
   onHowItWorks,
@@ -22,6 +23,7 @@ export function UploadScreen({
   onAbandonHeld,
 }) {
   const inputRef = useRef(null)
+  const cropInputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const backend = useBackendStatus()
 
@@ -139,7 +141,7 @@ export function UploadScreen({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <button
               type="button"
               onClick={onUseCamera}
@@ -167,6 +169,33 @@ export function UploadScreen({
                 <p className="m-0 mt-0.5 text-body-sm text-ink-muted">Pick both photos at once</p>
               </div>
             </button>
+
+            <button
+              type="button"
+              onClick={() => cropInputRef.current?.click()}
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
+            >
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
+                <Icon name="crop_rotate" className="text-ink-muted" />
+              </div>
+              <div>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Straighten first</h3>
+                <p className="m-0 mt-0.5 text-body-sm text-ink-muted">
+                  Rotate a sideways or small face before sending it
+                </p>
+              </div>
+            </button>
+            <input
+              ref={cropInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) onFileForCrop(file)
+                event.target.value = ''
+              }}
+            />
           </div>
         </section>
       </div>

@@ -174,7 +174,7 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               valueClass={isFake ? 'text-error' : 'text-sage-ink'}
               borderClass={isFake ? 'border-error-container/60' : 'border-sage-tint'}
             />
-            {technical && <Tile label="Threshold" value="0.50" />}
+            {technical && <Tile label="Threshold" value={percent(THRESHOLD, 0)} />}
             <Tile label="Time taken" value={formatElapsed(result.elapsed_seconds)} />
             {technical && <Tile label="Face Crop" value="224²" />}
           </div>
@@ -190,13 +190,13 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               <div className="absolute -top-[5px] left-1/2 h-[18px] w-0.5 rounded-sm bg-ink opacity-60" />
             </div>
             <div className="label-caps mt-2.5 grid grid-cols-3 gap-2 text-outline">
-              <span className="text-left">0 · certainly real</span>
-              <span className="text-center">0.50 threshold</span>
-              <span className="text-right">1 · certainly fake</span>
+              <span className="text-left">0% · certainly real</span>
+              <span className="text-center">50% threshold</span>
+              <span className="text-right">100% · certainly fake</span>
             </div>
             <p className="m-0 mt-3 text-body-sm text-outline">
               {degraded
-                ? "This is the classifier's own number, unblended — the part of VeraLens measured at 97.50% accurate."
+                ? "This is the classifier's own number, unblended — the part of VeraLens measured at 97.5% accurate."
                 : isFake
                   ? 'Fake Probability always points toward fake, whatever the verdict — a confident Real sits near zero, not near one.'
                   : 'Fake Probability always points toward fake, whatever the verdict — sitting this close to zero is what a confident Real looks like.'}
@@ -329,7 +329,7 @@ function SignalCard({ signal, technical }) {
               Severity: {band}
             </span>
             <span className="label-caps rounded bg-line px-2 py-1 text-ink-muted">
-              {signal.severity.toFixed(2)}
+              {percent(signal.severity, 0)}
             </span>
           </div>
         )}
@@ -387,7 +387,7 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, 
         {degraded
           ? "When the reasoning layer's reply cannot be read, VeraLens excludes it from the blend entirely rather than treating an unreadable answer as a score. What is left is the classifier at full weight."
           : technical
-            ? "The number on this page is not the classifier's alone. It is 0.55 of the classifier plus 0.45 of the reasoning layer — and only the classifier has ever been measured as a detector."
+            ? "The number on this page is not the classifier's alone. It is 55% the classifier and 45% the reasoning layer — and only the classifier has ever been measured as a detector."
             : "Two things looked at this photo: a detector, and a language model that explains. The number above is mostly the detector's — and only the detector has ever been tested at telling real from fake."}
       </p>
 
@@ -399,11 +399,11 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, 
         <div className="mt-4 flex w-full flex-col gap-2">
           <Row
             label="Classifier"
-            value={`${degraded ? '1.00' : W_CLASSIFIER.toFixed(2)} · ${percent(result.classifier_score)}`}
+            value={`${percent(result.classifier_score)} · counts ${percent(degraded ? 1 : W_CLASSIFIER, 0)}`}
           />
           <Row
             label="Reasoning layer"
-            value={degraded ? 'Excluded' : `${W_REASONING.toFixed(2)} · ${percent(reasoning)}`}
+            value={degraded ? 'Excluded' : `${percent(reasoning)} · counts ${percent(W_REASONING, 0)}`}
           />
           <Row
             label={degraded ? 'Final' : 'Fused'}
@@ -413,7 +413,7 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, 
           />
           <Row
             label="Verdict"
-            value={`${isFake ? 'Above' : 'Below'} 0.50 → ${isFake ? 'Fake' : 'Real'}`}
+            value={`${isFake ? 'Above' : 'Below'} ${percent(THRESHOLD, 0)} → ${isFake ? 'Fake' : 'Real'}`}
             last
           />
 

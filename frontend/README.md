@@ -16,9 +16,9 @@ The backend has to be running too, from the repo root:
 ..\venv\Scripts\python.exe -m uvicorn backend.app.api.main:app --port 8000
 ```
 
-The dev server proxies `/analyze`, `/health` and `/static` to port 8000, so the
-browser only ever talks to one origin and CORS never enters the picture. Set
-`VITE_API_BASE` only if the API lives somewhere else.
+The dev server proxies `/detect`, `/analyze`, `/health` and `/static` to port
+8000, so the browser only ever talks to one origin and CORS never enters the
+picture. Set `VITE_API_BASE` only if the API lives somewhere else.
 
 `npm run build` emits `dist/`, which is meant to be served next to the API.
 
@@ -26,7 +26,7 @@ browser only ever talks to one origin and CORS never enters the picture. Set
 
 ```
 src/
-  api/client.js       POST /analyze, and the four failure kinds it can produce
+  api/client.js       POST /detect then /analyze, and the four failure kinds they can produce
   lib/analysis.js     fusion constants, severity bands, file limits, formatting
   hooks/              useCamera (one still, always released), useElapsed
   components/         Page chrome, sidebar, icons, the "How this works" panel
@@ -45,11 +45,17 @@ idle ─┬─ file chosen ─────────────→ analyzing 
 
 ## Things worth knowing before changing it
 
-- **`/analyze` blocks for 60–90 seconds and reports no progress.** The waiting
-  screen marks stages by typical timing and says so; it never claims to know
-  which stage is running. Real progress needs an SSE or polling endpoint.
-- **Failures arrive as HTTP 200** with an `error` key, so `client.js` branches
-  on the body, not the status.
+- **/detect then /analyze, not one request.** /detect is sub-second and
+  returns the face list; /analyze takes the chosen face and blocks for
+  60–90 seconds reporting no progress. The waiting screen marks stages by
+  typical timing and says so; it never claims to know which stage is
+  running. Real progress needs an SSE or polling endpoint.
+- **More than one detected face stops at a picker** (`FacePickerScreen`)
+  before /analyze is ever called — nothing has been classified yet at that
+  point. Exactly one face skips the picker silently, the way it always has.
+- **No face found arrives as HTTP 200** with an empty `faces` array from
+  `/detect`, not a 4xx — `client.js` turns that into the same `AnalysisError`
+  the other failure kinds use.
 - **Never trigger an analysis from an effect.** StrictMode double-invokes them
   in development and the backend serialises the GPU, so the second POST queues
   a second 70-second run behind the first.

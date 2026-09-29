@@ -87,9 +87,9 @@ function Scale({ a, b }) {
           </div>
 
           <div className="label-caps mt-1 grid grid-cols-3 gap-2 text-ink-muted">
-            <span className="text-left">0 · certainly real</span>
-            <span className="text-center">0.50 threshold</span>
-            <span className="text-right">1 · certainly fake</span>
+            <span className="text-left">0% · certainly real</span>
+            <span className="text-center">50% threshold</span>
+            <span className="text-right">100% · certainly fake</span>
           </div>
         </div>
       </div>
@@ -109,7 +109,7 @@ function Pin({ side }) {
           fake ? 'text-error' : 'text-sage-ink'
         }`}
       >
-        {side.label} · {side.result.fake_probability.toFixed(2)}
+        {side.label} · {percent(side.result.fake_probability, 0)}
       </span>
       <span
         className={`h-0 w-0 border-x-7 border-t-10 border-x-transparent ${
@@ -190,12 +190,12 @@ function AnalysisCard({ side, technical }) {
         <div className="flex flex-col">
           <Row
             label="Classifier"
-            value={`${W_CLASSIFIER.toFixed(2)} · ${percent(result.classifier_score)}`}
+            value={`${percent(result.classifier_score)} · counts ${percent(W_CLASSIFIER, 0)}`}
           />
           <Row
             label="Reasoning layer"
             value={
-              reasoning === null ? 'Excluded' : `${W_REASONING.toFixed(2)} · ${percent(reasoning)}`
+              reasoning === null ? 'Excluded' : `${percent(reasoning)} · counts ${percent(W_REASONING, 0)}`
             }
           />
           <Row label="Fused" value={percent(result.fake_probability)} last />
@@ -220,7 +220,7 @@ function Difference({ a, b, technical, onRestart }) {
   return (
     <section className="flex flex-col gap-5 rounded-2xl bg-container-high px-8 py-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <Stat label="Gap on the scale" value={gapBetween(a, b).toFixed(2)} />
+        <Stat label="Gap on the scale" value={`${Math.round(gapBetween(a, b) * 100)} points`} />
         <Stat label="Same verdict" value={sameVerdict(a, b) ? 'Yes' : 'No'} />
         {technical && <Stat label="Layers agreed on" value={agreementSummary(a, b)} />}
       </div>
