@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { analyze } from './api/client'
+import { analyzeFace, detectFaces } from './api/client'
 
 /**
  * The held slot, exercised through the real screens.
@@ -19,7 +19,12 @@ import { analyze } from './api/client'
 
 vi.mock('./api/client', async () => {
   const actual = await vi.importActual('./api/client')
-  return { ...actual, analyze: vi.fn(), ping: vi.fn().mockResolvedValue(true) }
+  return {
+    ...actual,
+    detectFaces: vi.fn(),
+    analyzeFace: vi.fn(),
+    ping: vi.fn().mockResolvedValue(true),
+  }
 })
 
 const CREATED = []
@@ -46,6 +51,32 @@ function choose(name) {
   fireEvent.change(input, { target: { files: [file] } })
 }
 
+/** One face, detected: the common case, where runAnalysis() continues
+ *  straight to analyzeFace() without stopping at the picker. */
+function oneFaceDetection(token = 'tok') {
+  return {
+    token,
+    faces: [{ index: 0, bbox: [10, 10, 110, 110], det_score: 0.95, width: 100, height: 100 }],
+  }
+}
+
+/** Queues a full single-face analysis: /detect finds one face, /analyze
+ *  resolves with the given Fake Probability. */
+function mockAnalysis(probability) {
+  detectFaces.mockResolvedValueOnce(oneFaceDetection())
+  analyzeFace.mockResolvedValueOnce(analysisFor(probability))
+}
+
+/** The "choose both up front" shape: photo A resolves immediately, photo B
+ *  (run in the background once A lands) is left mid-flight for the test to
+ *  settle by hand. */
+function mockTwoUpFront(firstProbability) {
+  const b = deferred()
+  detectFaces.mockResolvedValueOnce(oneFaceDetection('tok-a')).mockResolvedValueOnce(oneFaceDetection('tok-b'))
+  analyzeFace.mockResolvedValueOnce(analysisFor(firstProbability)).mockReturnValueOnce(b.promise)
+  return b
+}
+
 beforeEach(() => {
   CREATED.length = 0
   REVOKED.length = 0
@@ -70,7 +101,7 @@ afterEach(() => {
 })
 
 async function reachVerdictWith(name, probability) {
-  analyze.mockResolvedValueOnce(analysisFor(probability))
+  mockAnalysis(probability)
   choose(name)
   await screen.findByText(/how the verdict was reached/i)
 }
@@ -94,7 +125,7 @@ describe('holding an analysis for comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: /compare with another photo/i }))
     await screen.findByText(/is held as photo A/i)
 
-    analyze.mockResolvedValueOnce(analysisFor(0.91))
+    mockAnalysis(0.91)
     choose('second.jpg')
 
     await screen.findByText(/two photos, one scale/i)
@@ -110,7 +141,7 @@ describe('holding an analysis for comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: /compare with another photo/i }))
     await screen.findByText(/is held as photo A/i)
 
-    analyze.mockRejectedValueOnce(
+    detectFaces.mockRejectedValueOnce(
       Object.assign(new Error('The face detector did not find a face.'), { kind: 'no_face' }),
     )
     choose('second.jpg')
@@ -132,7 +163,7 @@ describe('holding an analysis for comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: /compare with another photo/i }))
     await screen.findByText(/is held as photo A/i)
 
-    analyze.mockResolvedValueOnce(analysisFor(0.91))
+    mockAnalysis(0.91)
     choose('second.jpg')
     await screen.findByText(/two photos, one scale/i)
 
@@ -150,7 +181,7 @@ describe('holding an analysis for comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: /compare with another photo/i }))
     await screen.findByText(/is held as photo A/i)
 
-    analyze.mockResolvedValueOnce(analysisFor(0.91))
+    mockAnalysis(0.91)
     choose('second.jpg')
     await screen.findByText(/two photos, one scale/i)
 
@@ -201,8 +232,7 @@ describe('choosing both photos up front', () => {
   }
 
   it('runs photo A first and says photo B is queued behind it', async () => {
-    const b = deferred()
-    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+    const b = mockTwoUpFront(0.08)
 
     await pickBoth()
 
@@ -218,8 +248,7 @@ describe('choosing both photos up front', () => {
   })
 
   it('does not offer "compare with another" while B is in flight', async () => {
-    const b = deferred()
-    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+    const b = mockTwoUpFront(0.08)
 
     await pickBoth()
     await screen.findByText(/is being\s*analysed now/i)
@@ -228,8 +257,7 @@ describe('choosing both photos up front', () => {
   })
 
   it('keeps photo A when the second run is stopped part-way', async () => {
-    const b = deferred()
-    analyze.mockResolvedValueOnce(analysisFor(0.08)).mockReturnValueOnce(b.promise)
+    const b = mockTwoUpFront(0.08)
 
     await pickBoth()
     await screen.findByText(/is being\s*analysed now/i)

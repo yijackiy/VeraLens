@@ -45,3 +45,6 @@ sqlalchemy                  # append-only score storage
 psycopg[binary]             # Postgres driver (Neon/Supabase)
 tenacity                    # retry with exponential backoff + jitter
 python-dotenv               # loads .env; secrets never live in config files
+
+# --- Testing ---
+pytest                      # httpx ships as a fastapi dependency already; TestClient needs it

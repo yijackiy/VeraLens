@@ -77,7 +77,7 @@ function Footer({ width }) {
           <span className="label-caps text-ink-muted">Bachelor thesis project · 2026</span>
         </div>
         <p className="m-0 max-w-[620px] text-body-sm text-ink-muted md:text-right">
-          Classifier: 97.50% accuracy, 0.9973 AUC on a leakage‑free validation split of 2,799
+          Classifier: 97.5% accuracy, 99.7% AUC on a leakage‑free validation split of 2,799
           images. Not measured on camera photos; the reasoning layer is not claimed to improve
           detection.
         </p>

@@ -44,7 +44,7 @@ export function Sidebar({ guidance = FILE_GUIDANCE, onHowItWorks }) {
           <div className="flex flex-col gap-1">
             <span className="label-caps text-outline">Decision threshold</span>
             <div className="flex items-center justify-between gap-3">
-              <span className="font-mono text-data-mono font-medium text-ink">0.50</span>
+              <span className="font-mono text-data-mono font-medium text-ink">50%</span>
               <span className="label-caps text-ink-muted">Fixed</span>
             </div>
           </div>

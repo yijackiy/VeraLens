@@ -23,20 +23,16 @@ export function asset(path) {
 }
 
 /**
- * POST the photo and wait. This blocks for 60-90 seconds: the backend runs
- * four models in sequence on one GPU and answers once, at the end.
- *
- * The failure the interface sees most often — no face in the photo — comes
- * back as HTTP 200 with an "error" key, not as a 4xx, so the status check
- * alone is not enough.
+ * Wraps a fetch() the way both /detect and /analyze need: AbortError becomes
+ * 'aborted', a network failure or a 502/503/504 (the dev proxy or nginx
+ * unable to reach the backend at all, not a server that ran and failed)
+ * becomes 'unreachable', and anything else non-2xx becomes 'server' with
+ * whatever detail the response carries.
  */
-export async function analyze(file, { signal } = {}) {
-  const form = new FormData()
-  form.append('file', file)
-
+async function post(path, { signal, ...init }) {
   let response
   try {
-    response = await fetch(asset('/analyze'), { method: 'POST', body: form, signal })
+    response = await fetch(asset(path), { method: 'POST', signal, ...init })
   } catch (cause) {
     if (cause?.name === 'AbortError') {
       throw new AnalysisError('aborted', 'Analysis was cancelled.', { cause })
@@ -49,10 +45,6 @@ export async function analyze(file, { signal } = {}) {
   }
 
   if (!response.ok) {
-    // 502/503/504 come from whatever sits in front of the API — the Vite dev
-    // proxy, or nginx — and mean it could not reach the backend at all. That
-    // is the same situation as a refused connection, not a server that ran and
-    // failed, so it gets the "did it start?" advice rather than "check the log".
     if ([502, 503, 504].includes(response.status)) {
       throw new AnalysisError(
         'unreachable',
@@ -66,15 +58,37 @@ export async function analyze(file, { signal } = {}) {
     )
   }
 
-  const result = await response.json()
+  return response.json()
+}
 
-  if (result.error === 'no_face_detected') {
+/**
+ * Step 1 of 2. POST the photo and get back, within about a second, either an
+ * empty face list (no_face) or a token plus one entry per detected face,
+ * left to right — {index, bbox, det_score, width, height}. One face resolves
+ * silently into analyzeFace(); more than one is what the picker is for.
+ */
+export async function detectFaces(file, { signal } = {}) {
+  const form = new FormData()
+  form.append('file', file)
+  const result = await post('/detect', { signal, body: form })
+
+  if (result.faces.length === 0) {
     throw new AnalysisError('no_face', 'The face detector did not find a face.')
   }
-  if (result.error) {
-    throw new AnalysisError('server', String(result.error))
-  }
   return result
+}
+
+/**
+ * Step 2 of 2. Takes the token detectFaces() returned and which face was
+ * chosen, and waits for the slow half of the pipeline — classifier,
+ * Grad-CAM and Qwen3-VL run in sequence on one GPU, so this blocks for
+ * 60-90 seconds and answers once, at the end.
+ */
+export async function analyzeFace(token, faceIndex, { signal } = {}) {
+  const form = new FormData()
+  form.append('token', token)
+  form.append('face_index', String(faceIndex))
+  return post('/analyze', { signal, body: form })
 }
 
 /** Cheap liveness probe. Answers while an analysis is running. */

@@ -23,7 +23,7 @@ const STAGES = [
     typical: '~1 sec',
     endsAt: 2,
     icon: 'speed',
-    body: 'EfficientNet‑B4 scores the crop from 0 to 1, always toward fake.',
+    body: 'EfficientNet‑B4 scores how likely the crop is to be fake, from 0% to 100%.',
   },
   {
     title: 'Saliency Map',
