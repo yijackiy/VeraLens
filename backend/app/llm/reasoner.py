@@ -11,6 +11,18 @@ from backend.app.llm.prompts import (BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT,
 MAX_RETRIES = 3
 MAX_NEW_TOKENS = 512
 
+# The reasoning layer samples. It always has: these are the values Qwen3-VL
+# ships in its generation_config.json, which generate() inherited silently
+# until they were written out here — and nothing ever overrode do_sample, so
+# every reported explanation and every live Analysis is one draw from this
+# distribution, not "the" answer for its photo (ADR 0013).
+#
+# Spelled out rather than inherited so the evaluated behaviour cannot drift:
+# model.py pins the snapshot too, but a value that lives only in a JSON file
+# on someone's cache is not a decision anyone made. Changing any of these
+# changes what the reported Explanation Quality numbers describe.
+SAMPLING = {"do_sample": True, "temperature": 0.7, "top_p": 0.8, "top_k": 20}
+
 VALID_VERDICTS = ("real", "fake")
 
 _JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -168,15 +180,17 @@ def run_reasoning(face_crop_pil: Image.Image,
     ).to(model.device)
 
     last_raw = ""
-    for attempt in range(MAX_RETRIES):
-        # Greedy decoding is deterministic, so a bare retry after a parse
-        # failure would just reproduce the same broken output — sample on
-        # retries to actually get a different generation.
-        gen_kwargs = {"max_new_tokens": MAX_NEW_TOKENS}
-        if attempt > 0:
-            gen_kwargs.update(do_sample=True, temperature=0.7)
-
-        output = model.generate(**inputs, **gen_kwargs)
+    for _attempt in range(MAX_RETRIES):
+        # Every attempt, the first included, is a fresh sample. This loop
+        # used to say the first was greedy and only retries sampled; neither
+        # was true — do_sample was never set, so all of them inherited the
+        # model's sampling defaults. A retry works because it is another
+        # sample, which was the case all along.
+        #
+        # These attempts are all one Draw (CONTEXT.md). A parse failure
+        # retried into a success is a single Draw that produced an
+        # explanation, not two Draws.
+        output = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, **SAMPLING)
         # Only decode the newly generated tokens, not the echoed prompt.
         new_tokens = output[:, inputs["input_ids"].shape[1]:]
         text = processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
