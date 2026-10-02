@@ -20,18 +20,18 @@ export function CameraScreen({ stream, onCapture, onCancel, onHowItWorks }) {
         <Sidebar guidance={CAMERA_GUIDANCE} onHowItWorks={onHowItWorks} />
 
         <section className="flex flex-grow flex-col gap-6">
-          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-6 shadow-ambient">
+          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-4 shadow-ambient sm:p-6">
             <div className="relative overflow-hidden rounded-2xl bg-slate">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="block h-[420px] w-full bg-slate object-cover"
+                className="block h-[360px] w-full bg-slate object-cover sm:h-[420px]"
               />
               {/* Framing guide — the detector wants one face, front on, large in frame. */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="h-[300px] w-[230px] rounded-[50%] border-2 border-dashed border-white/60" />
+                <div className="h-[240px] w-[180px] rounded-[50%] sm:h-[300px] sm:w-[230px] border-2 border-dashed border-white/60" />
               </div>
               <div className="glass absolute bottom-4 left-4 flex items-center gap-2 rounded-lg px-3 py-1.5">
                 <span className="inline-block h-2 w-2 rounded-full bg-sage" />

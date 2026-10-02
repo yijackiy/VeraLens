@@ -18,12 +18,12 @@ export function CameraReviewScreen({
         <Sidebar guidance={CAMERA_GUIDANCE} onHowItWorks={onHowItWorks} />
 
         <section className="flex flex-grow flex-col gap-6">
-          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-6 shadow-ambient">
+          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-4 shadow-ambient sm:p-6">
             <div className="overflow-hidden rounded-2xl bg-slate">
               <img
                 src={previewUrl}
                 alt="The photo you just captured, waiting for you to confirm it"
-                className="block h-[420px] w-full object-contain"
+                className="block h-[340px] w-full object-contain sm:h-[420px]"
               />
             </div>
 

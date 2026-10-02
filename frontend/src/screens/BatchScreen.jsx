@@ -55,7 +55,7 @@ export function BatchScreen({
       <section className="flex flex-col gap-6 rounded-3xl border border-line bg-paper p-8 shadow-ambient md:p-12">
         <div className="flex flex-col gap-3">
           <span className="label-caps text-ink-muted">Batch · {rows.length} photos</span>
-          <h1 className="m-0 font-serif text-verdict-lg font-bold text-ink-strong">
+          <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
             {rows.length} photos, one at a time
           </h1>
           <p className="m-0 max-w-3xl text-body-md text-ink-muted">
@@ -256,14 +256,22 @@ function Count({ label, value }) {
   )
 }
 
+/**
+ * One markup, two layouts. From `lg` up it is a table; below that each row
+ * becomes a card — file name, then status, then the numbers with their own
+ * labels — because seven columns on a phone left the file name three
+ * characters wide, and a tablet in the Technical register
+ * was not much better. A second, card-only copy of the rows would have meant two
+ * of every row in the document for anything that reads it without CSS.
+ */
 function Table({ rows, stage, technical, runningElapsed, onOpen }) {
   const queuedRows = rows.filter((r) => r.status === 'queued')
   const runningNow = rows.some((r) => r.status === 'running')
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-paper shadow-ambient">
-      <table className="w-full border-collapse text-left">
-        <thead>
+      <table className="block w-full border-collapse text-left lg:table">
+        <thead className="hidden lg:table-header-group">
           <tr className="bg-container">
             <Th>#</Th>
             <Th>File</Th>
@@ -274,14 +282,20 @@ function Table({ rows, stage, technical, runningElapsed, onOpen }) {
             <Th right>Time</Th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="block lg:table-row-group">
           {rows.map((row, index) => {
             const face = faceLabel(row)
             const position = queuedRows.indexOf(row) + (runningNow ? 2 : 1)
             return (
-              <tr key={row.id} className="border-t border-line align-top">
-                <td className="px-4 py-3 font-mono text-data-mono text-ink-muted">{index + 1}</td>
-                <td className="max-w-[320px] px-4 py-3">
+              <tr
+                key={row.id}
+                className="grid grid-cols-3 gap-x-4 gap-y-2 border-line p-4 sm:grid-cols-4 align-top not-first:border-t lg:table-row lg:border-t lg:p-0"
+              >
+                <td className="hidden px-4 py-3 font-mono text-data-mono text-ink-muted lg:table-cell">
+                  {index + 1}
+                </td>
+                <td className="col-span-3 sm:col-span-4 lg:max-w-[320px] lg:px-4 lg:py-3">
+                  <span className="mr-2 font-mono text-data-mono text-ink-muted lg:hidden">{index + 1}.</span>
                   {row.status === 'done' ? (
                     <button
                       type="button"
@@ -301,27 +315,40 @@ function Table({ rows, stage, technical, runningElapsed, onOpen }) {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-body-sm whitespace-nowrap text-ink">
+                <td className="col-span-3 sm:col-span-4 text-body-sm text-ink lg:px-4 lg:py-3 lg:whitespace-nowrap">
                   <Status row={row} stage={stage} position={position} runningElapsed={runningElapsed} />
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-data-mono text-ink-strong">
+                <Td label="Fake Probability" right className="font-mono text-data-mono text-ink-strong">
                   {display.probability(row)}
-                </td>
+                </Td>
                 {technical && (
-                  <td className="px-4 py-3 text-right font-mono text-data-mono text-ink-strong">
+                  <Td label="Classifier" right className="font-mono text-data-mono text-ink-strong">
                     {display.classifier(row)}
-                  </td>
+                  </Td>
                 )}
-                <td className="px-4 py-3 text-body-sm text-ink-strong">{display.verdict(row)}</td>
-                <td className="px-4 py-3 text-right font-mono text-data-mono text-ink-muted">
+                <Td label="Verdict" className="text-body-sm text-ink-strong">
+                  {display.verdict(row)}
+                </Td>
+                <Td label="Time" right className="font-mono text-data-mono whitespace-nowrap text-ink-muted">
                   {row.status === 'done' ? formatElapsed(row.result.elapsed_seconds) : '—'}
-                </td>
+                </Td>
               </tr>
             )
           })}
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** A number cell. On a card it carries its column name, which the hidden
+ *  table header no longer supplies. */
+function Td({ label, right = false, className = '', children }) {
+  return (
+    <td className={`flex flex-col justify-end lg:table-cell lg:px-4 lg:py-3 ${right ? 'lg:text-right' : ''} ${className}`}>
+      <span className="label-caps mb-0.5 block text-ink-muted lg:hidden">{label}</span>
+      <span>{children}</span>
+    </td>
   )
 }
 

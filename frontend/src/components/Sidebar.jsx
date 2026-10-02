@@ -13,10 +13,12 @@ export const CAMERA_GUIDANCE =
   'Sit facing your main light rather than with a window behind you. A backlit face is the most common reason the detector finds nothing.'
 
 /** The left rail of every "getting a photo in" screen: what will run, and how
- *  to give it something it can work with. */
+ *  to give it something it can work with. Below `lg` the rail stacks, and it
+ *  stacks *after* the screen's own content — first, a phone would open on two
+ *  cards of context and scroll to find the thing it came to do. */
 export function Sidebar({ guidance = FILE_GUIDANCE, onHowItWorks }) {
   return (
-    <aside className="flex w-full flex-col gap-6 lg:w-96 lg:flex-shrink-0">
+    <aside className="order-last flex w-full flex-col gap-6 lg:order-first lg:w-96 lg:flex-shrink-0">
       <div className="flex flex-col gap-6 rounded-xl bg-paper p-6 shadow-ambient">
         <div className="flex items-center gap-3 border-b border-line pb-4">
           <Icon name="tune" fill className="text-sage" />

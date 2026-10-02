@@ -188,15 +188,15 @@ function SeverityTable({ draws, rows }) {
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-container">
-              <th scope="col" className="label-caps px-4 py-3 text-ink-muted">
+              <th scope="col" className="label-caps px-3 py-3 sm:px-4 text-ink-muted">
                 Signal
               </th>
               {draws.map((_, index) => (
-                <th key={index} scope="col" className="label-caps px-3 py-3 text-right text-ink-muted">
+                <th key={index} scope="col" className="label-caps px-2 py-3 sm:px-3 text-right text-ink-muted">
                   Draw {index + 1}
                 </th>
               ))}
-              <th scope="col" className="label-caps px-4 py-3 text-right text-ink-muted">
+              <th scope="col" className="label-caps px-3 py-3 sm:px-4 text-right text-ink-muted">
                 Spread
               </th>
             </tr>
@@ -204,16 +204,16 @@ function SeverityTable({ draws, rows }) {
           <tbody className="font-mono text-data-mono">
             {rows.map((row) => (
               <tr key={row.name} className="border-t border-line">
-                <th scope="row" className="px-4 py-2.5 font-sans text-body-sm font-normal text-ink">
+                <th scope="row" className="px-3 py-2.5 sm:px-4 font-sans text-body-sm font-normal text-ink">
                   {row.name}
                 </th>
                 {row.severities.map((severity, index) => (
-                  <td key={index} className="px-3 py-2.5 text-right text-ink-strong">
+                  <td key={index} className="px-2 py-2.5 sm:px-3 text-right text-ink-strong">
                     {severity === null ? '—' : severity.toFixed(2)}
                   </td>
                 ))}
                 <td
-                  className={`px-4 py-2.5 text-right ${
+                  className={`px-3 py-2.5 sm:px-4 text-right ${
                     row.moved ? 'font-bold text-terracotta-ink' : 'text-ink-muted'
                   }`}
                 >
@@ -223,22 +223,22 @@ function SeverityTable({ draws, rows }) {
               </tr>
             ))}
             <tr className="border-t-2 border-line">
-              <th scope="row" className="px-4 py-2.5 font-sans text-body-sm font-normal text-ink">
+              <th scope="row" className="px-3 py-2.5 sm:px-4 font-sans text-body-sm font-normal text-ink">
                 Fused Fake Probability
               </th>
               {draws.map((draw, index) => (
-                <td key={index} className="px-3 py-2.5 text-right text-ink-strong">
+                <td key={index} className="px-2 py-2.5 sm:px-3 text-right text-ink-strong">
                   {percent(draw.fake_probability)}
                 </td>
               ))}
               <td />
             </tr>
             <tr className="border-t border-line">
-              <th scope="row" className="px-4 py-2.5 font-sans text-body-sm font-normal text-ink">
+              <th scope="row" className="px-3 py-2.5 sm:px-4 font-sans text-body-sm font-normal text-ink">
                 Verdict
               </th>
               {draws.map((draw, index) => (
-                <td key={index} className="px-3 py-2.5 text-right text-ink-strong">
+                <td key={index} className="px-2 py-2.5 sm:px-3 text-right text-ink-strong">
                   {draw.final_verdict === 'fake' ? 'Fake' : 'Real'}
                 </td>
               ))}
