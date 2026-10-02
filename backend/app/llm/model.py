@@ -18,6 +18,23 @@ _model = None
 _processor = None
 
 
+def _from_cache_first(cls, **kwargs):
+    """
+    from_pretrained, from disk if the pinned snapshot is already there.
+
+    A pinned revision still costs a request to the Hub on every load, so a
+    demo with no network would fail at the reasoning step on a machine that
+    has every byte it needs. Only a missing snapshot goes online — the first
+    run on a fresh machine or container.
+    """
+    try:
+        return cls.from_pretrained(MODEL_ID, revision=MODEL_REVISION,
+                                   local_files_only=True, **kwargs)
+    except OSError:
+        print(f"[llm] {MODEL_ID}@{MODEL_REVISION[:8]} not cached — downloading")
+        return cls.from_pretrained(MODEL_ID, revision=MODEL_REVISION, **kwargs)
+
+
 def load_qwen():
     """
     Lazy-loads Qwen3-VL-2B in 4-bit (fits the 4GB GTX 1650 VRAM budget).
@@ -29,10 +46,9 @@ def load_qwen():
         return _model, _processor
 
     bnb_config = BitsAndBytesConfig(load_in_4bit=True)
-    _processor = Qwen3VLProcessor.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
-    _model = Qwen3VLForConditionalGeneration.from_pretrained(
-        MODEL_ID,
-        revision=MODEL_REVISION,
+    _processor = _from_cache_first(Qwen3VLProcessor)
+    _model = _from_cache_first(
+        Qwen3VLForConditionalGeneration,
         torch_dtype=torch.float16,
         quantization_config=bnb_config,
         device_map="cuda:0",
