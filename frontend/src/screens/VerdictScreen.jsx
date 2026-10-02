@@ -195,7 +195,7 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               size={32}
             />
             <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
-              {isFake ? 'Synthetic face detected' : 'No sign of generation'}
+              {isFake ? 'Generated face detected' : 'No sign of generation'}
             </h1>
           </div>
 
