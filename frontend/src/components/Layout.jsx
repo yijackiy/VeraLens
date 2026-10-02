@@ -37,7 +37,9 @@ function Header({ width, onHome, onHelp }) {
           <Icon name="lens_blur" fill className="text-terracotta" size={30} />
           VeraLens
         </button>
-        <nav className="flex items-center gap-8">
+        {/* Hidden on phones, where it pushed the two icon buttons
+            off the edge: the wordmark beside it does the same thing. */}
+        <nav className="hidden items-center gap-8 sm:flex">
           <button
             type="button"
             onClick={onHome}
@@ -72,7 +74,7 @@ function Footer({ width }) {
       <div
         className={`mx-auto flex w-full flex-col justify-between gap-8 px-5 py-10 md:flex-row md:items-center md:px-16 ${WIDTHS[width]}`}
       >
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-shrink-0 flex-col gap-1.5">
           <span className="font-serif text-headline-sm font-bold text-ink-strong">VeraLens</span>
           <span className="label-caps text-ink-muted">Bachelor thesis project · 2026</span>
         </div>

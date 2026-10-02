@@ -48,7 +48,7 @@ export function UploadScreen({
               <div className="flex items-start gap-3.5">
                 <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
                 <p className="m-0 text-body-sm text-sage-ink">
-                  <span className="font-semibold">{held.photo.file.name}</span> is held as photo A.
+                  <span className="font-semibold break-all">{held.photo.file.name}</span> is held as photo A.
                   Whatever you choose next becomes photo B, and the two will be shown on one scale.
                 </p>
               </div>

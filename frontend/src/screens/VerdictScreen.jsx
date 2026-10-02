@@ -3,7 +3,7 @@ import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { RegisterToggle } from '../components/RegisterToggle'
-import { asset } from '../api/client'
+import { SaliencyMap } from '../components/SaliencyMap'
 import { useRegister } from '../hooks/useRegister'
 import { MODELS } from '../lib/register'
 import {
@@ -72,7 +72,7 @@ export function VerdictScreen({
           <div className="flex items-start gap-3.5">
             <Icon name="hourglass_top" className="vl-blink mt-0.5 text-sage-ink" size={22} />
             <p className="m-0 text-body-sm text-sage-ink">
-              This is photo A. <span className="font-semibold">{pending.name}</span> is being
+              This is photo A. <span className="font-semibold break-all">{pending.name}</span> is being
               analysed now — {formatClock(pending.elapsed)} so far. The comparison opens on its own
               when it lands.
             </p>
@@ -194,7 +194,7 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               className={isFake ? 'text-terracotta' : 'text-sage'}
               size={32}
             />
-            <h1 className="m-0 font-serif text-verdict-lg font-bold text-ink-strong">
+            <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
               {isFake ? 'Synthetic face detected' : 'No sign of generation'}
             </h1>
           </div>
@@ -247,30 +247,18 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
         </div>
 
         <div className="relative">
-          <div className="group relative h-80 w-full overflow-hidden rounded-2xl border border-line bg-slate shadow-ambient">
-            <img
-              src={asset(result.heatmap_url)}
-              alt="Grad-CAM saliency map over the analysed face crop"
-              className="h-full w-full object-contain"
-            />
-            {previewUrl && (
-              <img
-                src={previewUrl}
-                alt="The photograph you submitted"
-                className="absolute inset-0 h-full w-full bg-slate object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-              />
-            )}
-            <div className="glass absolute right-4 bottom-4 flex items-center gap-2 rounded-lg px-3 py-1.5">
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${isFake ? 'bg-terracotta' : 'bg-sage'}`}
-              />
-              <span className="label-caps tracking-[0.12em] text-ink-strong">Saliency Map</span>
-            </div>
-          </div>
+          <SaliencyMap
+            heatmapUrl={result.heatmap_url}
+            photoUrl={previewUrl}
+            heatmapAlt="Grad-CAM saliency map over the analysed face crop"
+            photoAlt="The photograph you submitted"
+            fake={isFake}
+            className="h-64 rounded-2xl shadow-ambient sm:h-80"
+          />
           <p className="m-0 mt-3 text-body-sm text-ink-muted lg:text-right">
             Grad‑CAM over the Face Crop —{' '}
             {isFake ? 'warmer means it moved the number more' : 'little here pushed toward fake'}.
-            {previewUrl && ' Hover to see your original photo.'}
+            {previewUrl && ' Tap or hover over it to see your original photo.'}
           </p>
         </div>
       </div>

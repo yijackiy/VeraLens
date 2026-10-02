@@ -146,7 +146,10 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
         recommended ? 'border-2 border-sage' : 'border-line'
       }`}
     >
-      <div className="flex items-center gap-4">
+      {/* Wraps rather than squeezes: on a phone the label and the button
+          shared one row and the label broke a word to a line. Below the
+          width where both fit, Analyse drops to a full-width row of its own. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <span
           className={`label-caps flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
             recommended ? 'bg-sage text-on-sage' : 'bg-container-high text-ink-muted'
@@ -157,7 +160,7 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
 
         <FaceThumbnail previewUrl={previewUrl} bbox={face.bbox} />
 
-        <div className="flex min-w-0 flex-grow flex-col gap-0.5">
+        <div className="flex min-w-[10rem] flex-1 flex-col gap-0.5">
           {/* The number stays in the label even on the recommended row. It is
               the handle every other screen uses for this face ("Face 3 of 4"),
               and the row you are most likely to click was the one hiding it. */}
@@ -173,7 +176,7 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
         <Button
           variant={recommended ? 'primary' : 'secondary'}
           onClick={onChoose}
-          className="flex-shrink-0 px-5 py-2.5 text-body-sm"
+          className="w-full flex-shrink-0 px-5 py-2.5 text-body-sm sm:w-auto"
         >
           Analyse
         </Button>

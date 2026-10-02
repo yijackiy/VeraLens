@@ -94,7 +94,7 @@ export function ProblemScreen({
               {kind === 'no_face' ? (
                 <>
                   The face detector didn't find a face in{' '}
-                  <span className="rounded bg-container px-2 py-0.5 font-mono text-data-mono text-ink-strong">
+                  <span className="rounded bg-container px-2 py-0.5 font-mono break-all text-data-mono text-ink-strong">
                     {fileName}
                   </span>
                   , so there was nothing to analyse.
@@ -117,7 +117,7 @@ export function ProblemScreen({
               <div className="mt-6 flex max-w-[560px] items-start gap-3.5 rounded-xl bg-sage-tint px-5 py-4 text-left">
                 <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
                 <p className="m-0 text-body-sm text-sage-ink">
-                  <span className="font-semibold">{held.photo.file.name}</span> is still held as
+                  <span className="font-semibold break-all">{held.photo.file.name}</span> is still held as
                   photo A. Nothing that happened here touched it.
                 </p>
               </div>

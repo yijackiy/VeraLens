@@ -69,7 +69,7 @@ export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks, que
     <Page width="narrow" onHelp={onHowItWorks}>
       <div className="flex flex-grow flex-col items-center justify-center gap-16 py-12 lg:flex-row lg:gap-24">
         <div className="flex w-full flex-col lg:w-[400px] lg:flex-shrink-0">
-          <h1 className="m-0 mb-6 font-serif text-verdict-lg font-bold text-ink-strong">
+          <h1 className="m-0 mb-6 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
             Looking at the photo
           </h1>
           <p className="m-0 mb-6 text-body-md text-ink-muted">
@@ -82,7 +82,7 @@ export function AnalyzingScreen({ fileName, elapsed, onCancel, onHowItWorks, que
             <span className="label-caps rounded-full bg-sage-tint px-4 py-1.5 text-sage-deep">
               Elapsed {formatClock(elapsed)}
             </span>
-            <span className="font-mono text-data-mono font-medium text-outline">{fileName}</span>
+            <span className="break-all font-mono text-data-mono font-medium text-outline">{fileName}</span>
           </div>
 
           {/* Without this a two-photo run looks exactly like a one-photo run,

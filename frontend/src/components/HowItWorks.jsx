@@ -30,7 +30,7 @@ export function HowItWorks({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="How VeraLens works"
-        className="w-full max-w-[720px] rounded-3xl border border-line bg-paper p-8 shadow-ambient md:p-12"
+        className="w-full max-w-[720px] rounded-3xl border border-line bg-paper p-6 shadow-ambient sm:p-8 md:p-12"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-6">
