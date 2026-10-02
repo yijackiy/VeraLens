@@ -627,6 +627,7 @@ export default function App() {
           onStart={batch.start}
           onStop={batch.stop}
           onResume={batch.resume}
+          onRetryFailed={batch.retryFailed}
           onOpen={openBatchRow}
           onLeave={leaveBatch}
           {...help}

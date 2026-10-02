@@ -27,6 +27,7 @@ export function BatchScreen({
   onStart,
   onStop,
   onResume,
+  onRetryFailed,
   onOpen,
   onLeave,
   onHowItWorks,
@@ -71,6 +72,7 @@ export function BatchScreen({
           onStart={onStart}
           onStop={onStop}
           onResume={onResume}
+          onRetryFailed={onRetryFailed}
           onLeave={onLeave}
         />
 
@@ -120,7 +122,7 @@ export function BatchScreen({
   )
 }
 
-function Progress({ stage, rows, toRun, runningElapsed, onStart, onStop, onResume, onLeave }) {
+function Progress({ stage, rows, toRun, runningElapsed, onStart, onStop, onResume, onRetryFailed, onLeave }) {
   const c = counts(rows)
 
   if (stage === 'ready') {
@@ -187,9 +189,17 @@ function Progress({ stage, rows, toRun, runningElapsed, onStart, onStop, onResum
   }
 
   return (
-    <p className="m-0 text-body-md text-ink">
-      {c.stopped > 0 ? 'Stopped.' : 'Finished.'} {c.done} of {rows.length} photos produced a verdict.
-    </p>
+    <div className="flex flex-wrap items-center gap-4">
+      <p className="m-0 text-body-md text-ink">
+        {c.stopped > 0 ? 'Stopped.' : 'Finished.'} {c.done} of {rows.length} photos produced a verdict.
+      </p>
+      {c.failed > 0 && (
+        <Button variant="secondary" onClick={onRetryFailed} className="px-5 py-2.5 text-body-sm">
+          <Icon name="refresh" size={18} />
+          {c.failed === 1 ? 'Try the failed photo again' : `Try the ${c.failed} failed photos again`}
+        </Button>
+      )}
+    </div>
   )
 }
 
