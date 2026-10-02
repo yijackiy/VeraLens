@@ -221,7 +221,7 @@ export function UploadScreen({
               ref={batchInputRef}
               type="file"
               multiple
-              aria-label="Choose photos for a batch"
+              aria-label="Choose photos for a multiple upload"
               className="hidden"
               onChange={(event) => {
                 const files = Array.from(event.target.files || [])

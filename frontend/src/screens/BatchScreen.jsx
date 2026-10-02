@@ -59,7 +59,7 @@ export function BatchScreen({
             {rows.length} photos, one at a time
           </h1>
           <p className="m-0 max-w-3xl text-body-md text-ink-muted">
-            There is one graphics card and VeraLens takes one analysis at a time, so a batch is a
+            There is one graphics card and VeraLens takes one analysis at a time, so this upload is a
             queue rather than a speed-up. What it buys you is not having to sit here between photos.
           </p>
         </div>
@@ -224,7 +224,7 @@ function Paused({ done, onResume, onStop }) {
       <div className="flex items-start gap-3">
         <Icon name="cloud_off" className="mt-0.5 flex-shrink-0 text-terracotta-ink" size={22} />
         <p className="m-0 text-body-sm text-terracotta-deep">
-          VeraLens lost the analysis server, so the batch is paused rather than failing every photo
+          VeraLens lost the analysis server, so this upload is paused rather than failing every photo
           left.{' '}
           {done === 0
             ? 'Nothing had finished yet.'

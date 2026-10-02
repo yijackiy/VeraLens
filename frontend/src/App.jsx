@@ -418,8 +418,8 @@ export default function App() {
     const unfinished = ['running', 'stopping', 'paused'].includes(batch.stage) && c.queued > 0
     if (unfinished || c.done > 0) {
       const message = unfinished
-        ? 'Stop this batch and leave? Its results live only on this page, so leaving discards them. The photo being analysed now still finishes on the graphics card.'
-        : 'Leave this batch? Its results live only on this page, so leaving discards them — export the CSV first to keep them.'
+        ? 'Stop this upload and leave? Its results live only on this page, so leaving discards them. The photo being analysed now still finishes on the graphics card.'
+        : 'Leave this upload? Its results live only on this page, so leaving discards them — export the CSV first to keep them.'
       if (!window.confirm(message)) return
     }
     clearDraws()
@@ -645,7 +645,7 @@ export default function App() {
             onDrawAgain: drawAgain,
             onCancel: cancelDraw,
             unavailable: batchBusy
-              ? 'Available once the batch has finished, paused or been stopped — the queue is using the graphics card.'
+              ? 'Available once this upload has finished, paused or been stopped — the queue is using the graphics card.'
               : null,
           }}
           batch={{

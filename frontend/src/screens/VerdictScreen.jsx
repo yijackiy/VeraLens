@@ -58,7 +58,7 @@ export function VerdictScreen({
           className="flex w-fit cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-ink-muted hover:text-terracotta-ink"
         >
           <Icon name="arrow_back" size={20} />
-          <span className="label-caps">{batch ? 'Back to the batch' : 'Back to uploads'}</span>
+          <span className="label-caps">{batch ? 'Back to this upload' : 'Back to uploads'}</span>
         </button>
 
         <RegisterToggle register={register} onChange={setRegister} />
@@ -98,7 +98,7 @@ export function VerdictScreen({
             onClick={batch.onBack}
             className="label-caps cursor-pointer rounded-lg border border-outline bg-transparent px-4 py-2 text-ink hover:bg-container"
           >
-            Back to the batch
+            Back to this upload
           </button>
         </div>
       )}
@@ -136,7 +136,7 @@ export function VerdictScreen({
             isFake={isFake}
             technical={technical}
             onRestart={back}
-            restartLabel={batch ? 'Back to the batch' : 'Analyse another photo'}
+            restartLabel={batch ? 'Back to this upload' : 'Analyse another photo'}
             onCompare={pending || batch ? null : onCompare}
           />
         </div>
@@ -398,7 +398,7 @@ function NoExplanation({ onRetry }) {
         // A row of a running Batch: trying again needs the graphics card the
         // queue is using, so it waits until the queue is done or stopped.
         <p className="label-caps m-0 mt-8 text-outline">
-          Trying again is available once the batch has finished or been stopped
+          Trying again is available once this upload has finished or been stopped
         </p>
       )}
     </div>
