@@ -62,7 +62,7 @@ function deferred() {
 const jpg = (name) => new File(['x'], name, { type: 'image/jpeg' })
 
 function chooseBatch(files) {
-  const input = screen.getByLabelText(/choose photos for a batch/i)
+  const input = screen.getByLabelText(/choose photos for a multiple upload/i)
   fireEvent.change(input, { target: { files } })
 }
 
@@ -153,7 +153,7 @@ describe('Batch', () => {
     chooseBatch([jpg('a.jpg'), jpg('b.jpg'), jpg('c.jpg')])
     fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
 
-    await screen.findByText(/batch is paused rather than failing every photo left/i)
+    await screen.findByText(/upload is paused rather than failing every photo left/i)
     expect(within(rowFor('a.jpg')).getByText('Done')).toBeTruthy()
     // Neither b (in flight when the server went) nor c (never reached) failed.
     expect(within(rowFor('b.jpg')).queryByText('Failed')).toBeNull()
@@ -202,7 +202,7 @@ describe('Batch', () => {
     await act(async () => second.resolve(analysis({ verdict: 'fake', p: 0.9 })))
     expect(screen.getByRole('button', { name: /draw again/i }).disabled).toBe(false)
 
-    fireEvent.click(screen.getAllByRole('button', { name: /back to the batch/i })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /back to this upload/i })[0])
     await screen.findByText(/finished\./i)
     expect(within(rowFor('b.jpg')).getByText('Fake')).toBeTruthy()
   })
@@ -348,7 +348,7 @@ describe('Batch', () => {
     await screen.findByText(/nothing this time/i)
 
     expect(screen.queryByRole('button', { name: /try this photo again/i })).toBeNull()
-    expect(screen.getByText(/available once the batch has finished or been stopped/i)).toBeTruthy()
+    expect(screen.getByText(/available once this upload has finished or been stopped/i)).toBeTruthy()
     await act(async () => second.resolve(analysis()))
   })
 })
