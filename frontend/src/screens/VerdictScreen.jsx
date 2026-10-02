@@ -36,6 +36,7 @@ export function VerdictScreen({
   onHowItWorks,
   pending,
   draws,
+  batch,
 }) {
   const isFake = result.final_verdict === 'fake'
   const degraded = !result.explanation_available
@@ -43,17 +44,21 @@ export function VerdictScreen({
   const decisive = Math.abs(result.fake_probability - THRESHOLD) > 0.35
   const agreed = reasoning === null ? null : reasoning > THRESHOLD === isFake
   const { register, setRegister, technical } = useRegister()
+  // A row of a Batch: every exit leads back to the table, never to the
+  // upload screen, because the queue is still running behind this page and
+  // "Analyse another photo" or "Compare" would abandon it.
+  const back = batch ? batch.onBack : onRestart
 
   return (
-    <Page width="wide" textured onHome={onRestart} onHelp={onHowItWorks}>
+    <Page width="wide" textured onHome={back} onHelp={onHowItWorks}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button
           type="button"
-          onClick={onRestart}
+          onClick={back}
           className="flex w-fit cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-ink-muted hover:text-terracotta-ink"
         >
           <Icon name="arrow_back" size={20} />
-          <span className="label-caps">Back to uploads</span>
+          <span className="label-caps">{batch ? 'Back to the batch' : 'Back to uploads'}</span>
         </button>
 
         <RegisterToggle register={register} onChange={setRegister} />
@@ -82,6 +87,22 @@ export function VerdictScreen({
         </div>
       )}
 
+      {batch && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-container-high px-6 py-4">
+          <p className="m-0 text-body-sm text-ink-muted">
+            <span className="font-semibold text-ink-strong">Batch · {batch.progress}</span>
+            {batch.running && ' — the queue keeps running while you read this.'}
+          </p>
+          <button
+            type="button"
+            onClick={batch.onBack}
+            className="label-caps cursor-pointer rounded-lg border border-outline bg-transparent px-4 py-2 text-ink hover:bg-container"
+          >
+            Back to the batch
+          </button>
+        </div>
+      )}
+
       <Hero
         result={result}
         previewUrl={previewUrl}
@@ -98,7 +119,7 @@ export function VerdictScreen({
             What the reasoning layer wrote
           </h2>
           {degraded ? (
-            <NoExplanation onRetry={onRetry} />
+            <NoExplanation onRetry={batch ? batch.onRetry : onRetry} />
           ) : (
             <Explanation result={result} technical={technical} />
           )}
@@ -114,8 +135,9 @@ export function VerdictScreen({
             degraded={degraded}
             isFake={isFake}
             technical={technical}
-            onRestart={onRestart}
-            onCompare={pending ? null : onCompare}
+            onRestart={back}
+            restartLabel={batch ? 'Back to the batch' : 'Analyse another photo'}
+            onCompare={pending || batch ? null : onCompare}
           />
         </div>
       </div>
@@ -131,6 +153,7 @@ export function VerdictScreen({
           technical={technical}
           onDrawAgain={draws.onDrawAgain}
           onCancel={draws.onCancel}
+          unavailable={draws.unavailable}
         />
       )}
     </Page>
@@ -366,25 +389,44 @@ function NoExplanation({ onRetry }) {
         than guessing at what it meant.
       </p>
 
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
-      >
-        <Icon name="refresh" size={20} />
-        Try this photo again
-      </button>
-      {/* The design offered "Ask for the explanation again", which would need an
-          endpoint that re-runs the reasoning layer over a cached crop. There
-          isn't one: this re-runs the whole pipeline, and says so. */}
-      <p className="label-caps m-0 mt-5 text-outline">
-        Runs the whole pipeline again · about a minute, sometimes three
-      </p>
+      {onRetry ? (
+        <>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
+          >
+            <Icon name="refresh" size={20} />
+            Try this photo again
+          </button>
+          {/* The design offered "Ask for the explanation again", which would need an
+              endpoint that re-runs the reasoning layer over a cached crop. There
+              isn't one: this re-runs the whole pipeline, and says so. */}
+          <p className="label-caps m-0 mt-5 text-outline">
+            Runs the whole pipeline again · about a minute, sometimes three
+          </p>
+        </>
+      ) : (
+        // A row of a running Batch: trying again needs the graphics card the
+        // queue is using, so it waits until the queue is done or stopped.
+        <p className="label-caps m-0 mt-8 text-outline">
+          Trying again is available once the batch has finished or been stopped
+        </p>
+      )}
     </div>
   )
 }
 
-function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, onCompare }) {
+function BlendCard({
+  result,
+  reasoning,
+  degraded,
+  isFake,
+  technical,
+  onRestart,
+  restartLabel,
+  onCompare,
+}) {
   return (
     <div className="flex h-full flex-col gap-4 rounded-xl border border-line bg-paper p-6 shadow-ambient">
       <div className="mb-2 flex items-center gap-2">
@@ -466,7 +508,7 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, 
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-outline-variant/50 bg-container py-3 text-body-md font-semibold text-ink-strong hover:bg-container-high"
         >
           <Icon name="restart_alt" size={20} />
-          Analyse another photo
+          {restartLabel}
         </button>
       </div>
     </div>

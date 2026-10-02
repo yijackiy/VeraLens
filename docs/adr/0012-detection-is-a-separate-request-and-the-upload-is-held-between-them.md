@@ -42,7 +42,10 @@ the cost of being wrong about that is one failed upload.
 else, so backing out of the picker — "choose a different photo" — leaves the
 temp file and its dict entry behind for the life of the process. Accepted
 deliberately, as the same shape of gap as the un-swept heatmap directory. A
-TTL sweep on `/detect` is the cheap fix if it ever matters.
+TTL sweep on `/detect` is the cheap fix if it ever matters. A Batch detects
+every photo before analysing any (so a no-face photo is known in seconds),
+which means it holds up to 20 uploads at once and an abandoned Batch leaks
+all of them — the same gap, multiplied, and accepted on the same terms.
 
 **The default face changed from leftmost to largest.** With a picker in front
 of it, "which face when nobody chooses" became a question the software answers
