@@ -67,7 +67,7 @@ export function CropScreen({ previewUrl, onUse, onCancel, onHowItWorks }) {
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.5fr_1fr]">
           <div className="flex flex-col gap-4">
-            <div className="relative flex h-[480px] w-full items-center justify-center overflow-hidden rounded-2xl border border-line bg-slate">
+            <div className="relative flex h-[360px] w-full items-center sm:h-[480px] justify-center overflow-hidden rounded-2xl border border-line bg-slate">
               <img
                 src={previewUrl}
                 alt="The submitted photo, rotated for preview"
@@ -77,7 +77,7 @@ export function CropScreen({ previewUrl, onUse, onCancel, onHowItWorks }) {
               <CropFrameOverlay />
             </div>
 
-            <div className="flex items-center gap-5 rounded-xl border border-line bg-paper px-6 py-4.5 shadow-ambient">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-line bg-paper px-5 py-4.5 shadow-ambient sm:flex-nowrap sm:px-6">
               <span className="label-caps flex-shrink-0 text-ink-muted">Rotate</span>
               <input
                 type="range"
@@ -86,10 +86,10 @@ export function CropScreen({ previewUrl, onUse, onCancel, onHowItWorks }) {
                 step={0.5}
                 value={fineRotation}
                 onChange={(event) => setFineRotation(Number(event.target.value))}
-                className="h-1.5 flex-grow cursor-pointer accent-sage-deep"
+                className="order-last h-1.5 w-full cursor-pointer accent-sage-deep sm:order-none sm:w-auto sm:flex-grow"
                 aria-label="Fine rotation, degrees"
               />
-              <span className="font-mono text-data-mono font-bold text-ink-strong w-[64px] flex-shrink-0 text-right">
+              <span className="font-mono text-data-mono font-bold text-ink-strong ml-auto w-[64px] flex-shrink-0 text-right sm:ml-0">
                 {totalRotation.toFixed(1)}°
               </span>
               <button

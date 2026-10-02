@@ -2,7 +2,7 @@ import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { RegisterToggle } from '../components/RegisterToggle'
-import { asset } from '../api/client'
+import { SaliencyMap } from '../components/SaliencyMap'
 import { useRegister } from '../hooks/useRegister'
 import {
   agreementSummary,
@@ -65,7 +65,7 @@ function Scale({ a, b }) {
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <Icon name="compare" fill className="text-sage" size={32} />
-          <h1 className="m-0 font-serif text-verdict-lg font-bold text-ink-strong">
+          <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
             Two photos, one scale
           </h1>
         </div>
@@ -158,24 +158,14 @@ function AnalysisCard({ side, technical }) {
         </span>
       </div>
 
-      <div className="group relative h-56 w-full overflow-hidden rounded-xl border border-line bg-slate">
-        <img
-          src={asset(result.heatmap_url)}
-          alt={`Grad-CAM saliency map for photo ${label}`}
-          className="h-full w-full object-contain"
-        />
-        <img
-          src={photo.url}
-          alt={`The photograph submitted as ${label}`}
-          className="absolute inset-0 h-full w-full bg-slate object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        />
-        <div className="glass absolute right-3 bottom-3 flex items-center gap-2 rounded-lg px-3 py-1.5">
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${fake ? 'bg-terracotta' : 'bg-sage'}`}
-          />
-          <span className="label-caps tracking-[0.12em] text-ink-strong">Saliency Map</span>
-        </div>
-      </div>
+      <SaliencyMap
+        heatmapUrl={result.heatmap_url}
+        photoUrl={photo.url}
+        heatmapAlt={`Grad-CAM saliency map for photo ${label}`}
+        photoAlt={`The photograph submitted as ${label}`}
+        fake={fake}
+        className="h-56 rounded-xl"
+      />
 
       <FaceNotice result={result} scope="in this card" />
 
