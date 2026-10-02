@@ -82,7 +82,7 @@ export async function detectFaces(file, { signal } = {}) {
  * Step 2 of 2. Takes the token detectFaces() returned and which face was
  * chosen, and waits for the slow half of the pipeline — classifier,
  * Grad-CAM and Qwen3-VL run in sequence on one GPU, so this blocks for
- * 60-90 seconds and answers once, at the end.
+ * a minute at the median, ~3 at p90, and answers once, at the end.
  */
 export async function analyzeFace(token, faceIndex, { signal } = {}) {
   const form = new FormData()
