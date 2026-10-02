@@ -29,7 +29,8 @@ Submitted Photo
 ```
 
 The two models are **never resident on the GPU at the same time** — 4GB does not allow it.
-One analysis runs at a time (`threading.Lock`), and takes roughly **15–90 s**.
+One analysis runs at a time (`threading.Lock`), and takes **60 s at the median** — 40 s at the
+floor, 169 s at p90 (n=600, `results/ablation_records*.jsonl`).
 
 | Endpoint | Purpose |
 |---|---|

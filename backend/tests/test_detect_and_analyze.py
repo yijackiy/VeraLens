@@ -4,7 +4,7 @@
 Detection is left real — it is ~0.2s on this hardware's default CPU config
 (ADR 0011) and InsightFace's buffalo_l weights are already on disk, so there
 is no reason to fake it. run_pipeline_from_crop() is mocked in every /analyze
-test: it is the classifier + Grad-CAM + Qwen3-VL half, 15-90s and the one
+test: it is the classifier + Grad-CAM + Qwen3-VL half, a minute at the median and the one
 documented to crash intermittently at model load, and none of that is what
 these tests are checking. What they check is the contract between the two
 requests — the token, the face list, and that a token is spent once.

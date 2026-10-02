@@ -1,8 +1,8 @@
 # VeraLens — Architecture Diagrams
 
 Drawn from the code on 23 September 2026. Every box names a real module, and every
-number (224×224, 4-bit, 0.55/0.45, 805 MiB, 15–90 s) is taken from the source or from
-`results/RESULTS.md` rather than estimated. Terms follow [`../CONTEXT.md`](../CONTEXT.md).
+number (224×224, 4-bit, 0.55/0.45, 805 MiB, 60 s median) is taken from the source or from
+`results/` rather than estimated. Terms follow [`../CONTEXT.md`](../CONTEXT.md).
 
 Diagrams are Mermaid, so they render on GitHub and can be exported to SVG/PNG for the
 thesis. If any of these stops matching the code, fix the code or fix the diagram — do not
@@ -98,11 +98,11 @@ sequenceDiagram
         P->>C: unload_cam() + unload_model()
         Note right of C: VRAM freed before the VLM loads
         P->>Q: run_reasoning(crop, fake_score)
-        Note right of Q: verdict stated in WORDS (ADR 0008)<br/>up to 3 attempts, sampled on retry
+        Note right of Q: verdict stated in WORDS (ADR 0008)<br/>up to 3 attempts, every one sampled (ADR 0013)
         Q-->>P: {verdict, confidence, signals[], explanation}
         P->>P: fuse(fake_score, llm_result)
         P-->>A: verdict + probabilities + heatmap_url + elapsed_seconds
-        A-->>B: JSON (15–90 s later, one response)
+        A-->>B: JSON (~60 s median, 169 s p90; one response)
         B->>A: GET /static/heatmaps/<uuid>.png
     end
 ```
@@ -270,6 +270,7 @@ blind-vs-informed difference is the trustworthy part, since one judge grades bot
 | 224×224 crop, buffalo_l, det_size 640 | `backend/app/preprocessing/face_pipeline.py` |
 | 805 MiB CUDA provider cost, CPU default | `.env.example`, ADR 0011 |
 | 0.55 / 0.45 weights, field semantics | `backend/app/fusion/fusion.py` |
-| 3 attempts, 512 new tokens, sampling on retry | `backend/app/llm/reasoner.py` |
-| 15–90 s, `elapsed_seconds`, `faces_found` | `backend/app/pipeline.py` |
+| 3 attempts, 512 new tokens, always sampled (ADR 0013) | `backend/app/llm/reasoner.py` |
+| `elapsed_seconds`, `faces_found` | `backend/app/pipeline.py` |
+| 40 s floor, 60 s median, 169 s p90 | `seconds` in `results/ablation_records*.jsonl` (n=600) |
 | Accuracy, AUC, ablation, ROUGE, judge means | `results/RESULTS.md` |

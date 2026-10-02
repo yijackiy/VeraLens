@@ -48,7 +48,7 @@ import { VerdictScreen } from './screens/VerdictScreen'
  * history screen and nothing is persisted — a Comparison dies with the tab.
  *
  * `analyzing` covers two backend requests, not one: /detect (sub-second) and
- * then /analyze (the 60-90 second half). Both show the same screen — the gap
+ * then /analyze (the slow half: a minute at the median). Both show the same screen — the gap
  * is too short to be worth a state of its own — except when /detect finds
  * more than one face, which is what `face-pick` is for. The queued second
  * photo (compare-two-up-front) never reaches `face-pick`: there is no screen
