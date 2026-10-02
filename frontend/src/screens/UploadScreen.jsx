@@ -208,9 +208,9 @@ export function UploadScreen({
                 <Icon name="table_rows" className="text-ink-muted" />
               </div>
               <div>
-                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Batch</h3>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Check many photos</h3>
                 <p className="m-0 mt-0.5 text-body-sm text-ink-muted">
-                  Up to 20 photos, queued one at a time
+                  Up to 20, checked one by one, results in a table
                 </p>
               </div>
             </button>
