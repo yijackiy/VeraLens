@@ -54,7 +54,7 @@ export function BatchScreen({
 
       <section className="flex flex-col gap-6 rounded-3xl border border-line bg-paper p-8 shadow-ambient md:p-12">
         <div className="flex flex-col gap-3">
-          <span className="label-caps text-ink-muted">Batch · {rows.length} photos</span>
+          <span className="label-caps text-ink-muted">Multiple-Upload · {rows.length} photos</span>
           <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
             {rows.length} photos, one at a time
           </h1>

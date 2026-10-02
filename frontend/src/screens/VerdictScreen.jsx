@@ -90,7 +90,7 @@ export function VerdictScreen({
       {batch && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-container-high px-6 py-4">
           <p className="m-0 text-body-sm text-ink-muted">
-            <span className="font-semibold text-ink-strong">Batch · {batch.progress}</span>
+            <span className="font-semibold text-ink-strong">Multiple-Upload · {batch.progress}</span>
             {batch.running && ' — the queue keeps running while you read this.'}
           </p>
           <button
