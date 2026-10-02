@@ -287,6 +287,53 @@ describe('Batch', () => {
     expect(analyzeFace).toHaveBeenCalledTimes(2)
   })
 
+  it('retries failed photos once the batch ends, but not photos with no face', async () => {
+    detectFaces.mockImplementation(async (file) => {
+      if (file.name === 'blank.jpg') throw NO_FACE()
+      return ONE(file.name)
+    })
+    analyzeFace
+      .mockResolvedValueOnce(analysis())
+      .mockRejectedValueOnce(new AnalysisError('server', 'The paging file is too small.'))
+
+    render(<App />)
+    chooseBatch([jpg('a.jpg'), jpg('b.jpg'), jpg('blank.jpg')])
+    fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
+    await screen.findByText(/finished\./i)
+    expect(within(rowFor('b.jpg')).getByText('Failed')).toBeTruthy()
+    expect(within(rowFor('b.jpg')).getByText(/paging file/i)).toBeTruthy()
+
+    detectFaces.mockClear()
+    analyzeFace.mockResolvedValueOnce(analysis({ verdict: 'fake', p: 0.9 }))
+    fireEvent.click(screen.getByRole('button', { name: /try the failed photo again/i }))
+
+    await screen.findByText(/finished\. 2 of 3/i)
+    expect(within(rowFor('b.jpg')).getByText('Fake')).toBeTruthy()
+    // The old failure reason goes with the failure.
+    expect(within(rowFor('b.jpg')).queryByText(/paging file/i)).toBeNull()
+    // Only the failed photo went back through — not the finished one, not the faceless one.
+    expect(detectFaces.mock.calls.map(([file]) => file.name)).toEqual(['b.jpg'])
+    expect(within(rowFor('blank.jpg')).getByText('No face found')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /failed photo/i })).toBeNull()
+  })
+
+  it('offers no retry while the queue is still running', async () => {
+    detectFaces.mockImplementation(async (file) => ONE(file.name))
+    const second = deferred()
+    analyzeFace
+      .mockRejectedValueOnce(new AnalysisError('server', 'Out of memory.'))
+      .mockReturnValueOnce(second.promise)
+
+    render(<App />)
+    chooseBatch([jpg('a.jpg'), jpg('b.jpg')])
+    fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
+    await within(table()).findByText('Failed')
+
+    expect(screen.queryByRole('button', { name: /failed photo/i })).toBeNull()
+    await act(async () => second.resolve(analysis()))
+    expect(await screen.findByRole('button', { name: /try the failed photo again/i })).toBeTruthy()
+  })
+
   it('does not offer to re-run a row while the queue is running', async () => {
     detectFaces.mockImplementation(async (file) => ONE(file.name))
     const second = deferred()

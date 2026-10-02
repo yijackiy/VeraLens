@@ -186,6 +186,23 @@ export function useBatch() {
   }, [commit, setStage])
 
   /**
+   * Sends every failed photo through the queue again, once it has ended. A
+   * failure here is usually the server — a crash or a failed model load —
+   * rather than the photo, so it is worth a second try. Photos with no face
+   * are not retried: detection is deterministic and would find nothing again.
+   */
+  const retryFailed = useCallback(() => {
+    if (stageRef.current !== 'ended') return
+    if (!rowsRef.current.some((r) => r.status === 'failed')) return
+    commit(
+      rowsRef.current.map((r) =>
+        r.status === 'failed' ? { ...r, status: 'waiting', reason: null, token: null, redetected: false } : r,
+      ),
+    )
+    run()
+  }, [commit, run])
+
+  /**
    * "Try this photo again" from a row's verdict screen: a new Analysis of
    * the same face, replacing the row's and marked as a re-run. Only when the
    * queue is not running — it needs the same graphics card. If it fails, the
@@ -236,5 +253,5 @@ export function useBatch() {
 
   // When the stopping loop lands its last photo it sets 'ended' itself; a
   // stop with nothing in flight ends at once (above).
-  return { rows, notAdded, stage, choose, start, stop, resume, rerun, discard }
+  return { rows, notAdded, stage, choose, start, stop, resume, retryFailed, rerun, discard }
 }
