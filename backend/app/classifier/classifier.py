@@ -22,9 +22,13 @@ def _load_model():
     if _model is not None:
         return _model
 
-    m = timm.create_model("efficientnet_b4", pretrained=True, num_classes=2)
+    # ImageNet weights only when there is no checkpoint to overwrite them: the
+    # checkpoint replaces every parameter and buffer, and fetching them first
+    # is a request to the Hugging Face Hub on every load, which fails offline.
     ckpt = os.path.normpath(CHECKPOINT)
-    if os.path.exists(ckpt):
+    has_ckpt = os.path.exists(ckpt)
+    m = timm.create_model("efficientnet_b4", pretrained=not has_ckpt, num_classes=2)
+    if has_ckpt:
         state = torch.load(ckpt, map_location="cpu")
         m.load_state_dict(state)
         print(f"[classifier] loaded checkpoint: {ckpt}")
