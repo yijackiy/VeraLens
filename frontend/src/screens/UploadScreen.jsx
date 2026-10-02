@@ -17,6 +17,7 @@ export function UploadScreen({
   onFileForCrop,
   onUseCamera,
   onCompareTwo,
+  onBatch,
   onHowItWorks,
   rejection,
   held,
@@ -24,6 +25,7 @@ export function UploadScreen({
 }) {
   const inputRef = useRef(null)
   const cropInputRef = useRef(null)
+  const batchInputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const backend = useBackendStatus()
 
@@ -141,7 +143,7 @@ export function UploadScreen({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <button
               type="button"
               onClick={onUseCamera}
@@ -193,6 +195,37 @@ export function UploadScreen({
               onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (file) onFileForCrop(file)
+                event.target.value = ''
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => batchInputRef.current?.click()}
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
+            >
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
+                <Icon name="table_rows" className="text-ink-muted" />
+              </div>
+              <div>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Batch</h3>
+                <p className="m-0 mt-0.5 text-body-sm text-ink-muted">
+                  Up to 20 photos, queued one at a time
+                </p>
+              </div>
+            </button>
+            {/* No `accept` filter on purpose: a file VeraLens cannot read still
+                becomes a row that says why, rather than vanishing from the
+                picker without a word. */}
+            <input
+              ref={batchInputRef}
+              type="file"
+              multiple
+              aria-label="Choose photos for a batch"
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files || [])
+                if (files.length) onBatch(files)
                 event.target.value = ''
               }}
             />

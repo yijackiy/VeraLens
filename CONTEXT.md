@@ -44,6 +44,10 @@ _Avoid_: re-run, sample, retry, attempt, replicate
 The one Analysis parked aside while a second photo is submitted, so the two can be read together. Exactly one is ever held; it lives in the browser for as long as the tab does and is never stored. Holding is what turns the next submission into the second half of a Comparison rather than a fresh start.
 _Avoid_: pinned, saved, bookmarked, first result, photo 1
 
+**Batch**:
+Several Submitted Photos queued together and analysed one at a time, each on its own: every photo yields its own Analysis, or a stated reason it yielded none, and a photo with no Face Crop stays in the Batch as exactly that, never as a Verdict of REAL. A Batch is a queue, not a measurement — its counts describe these photos and say nothing about how accurate VeraLens is.
+_Avoid_: bulk scan, test run, benchmark, results set, folder
+
 **Comparison**:
 Two Analyses read against one shared Fake Probability scale. The distance between them is a distance and nothing more — it supports no ranking, and neither Analysis becomes more certain for having been placed next to another.
 _Avoid_: ranking, versus, diff, A/B test, score comparison
