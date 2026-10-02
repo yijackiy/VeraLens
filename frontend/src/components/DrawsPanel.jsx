@@ -28,9 +28,21 @@ import {
  * adds the table of raw ratings the findings are computed from, which keeps
  * Plain a strict reduction of Technical.
  */
-export function DrawsPanel({ analysis, entries, inFlight, elapsed, technical, onDrawAgain, onCancel }) {
+export function DrawsPanel({
+  analysis,
+  entries,
+  inFlight,
+  elapsed,
+  technical,
+  onDrawAgain,
+  onCancel,
+  unavailable = null,
+}) {
   const draws = drawsOf(analysis, entries)
-  const allowed = canDrawAgain(draws, inFlight)
+  // `unavailable` is a reason, not a flag: a Batch row cannot draw while the
+  // queue holds the graphics card, and a greyed button with no reason reads
+  // as broken.
+  const allowed = !unavailable && canDrawAgain(draws, inFlight)
   const atCap = draws.length >= MAX_DRAWS
 
   return (
@@ -68,6 +80,7 @@ export function DrawsPanel({ analysis, entries, inFlight, elapsed, technical, on
           <span className="font-mono text-data-mono text-ink-muted">
             {atCap ? `All ${MAX_DRAWS} Draws used` : `${draws.length} of ${MAX_DRAWS} Draws`}
           </span>
+          {unavailable && <span className="text-body-sm text-ink-muted">{unavailable}</span>}
         </div>
 
         {inFlight && (

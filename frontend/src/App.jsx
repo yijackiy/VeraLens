@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { analyzeFace, detectFaces } from './api/client'
 import { HowItWorks } from './components/HowItWorks'
+import { useBatch } from './hooks/useBatch'
 import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
 import { rejectionReason } from './lib/analysis'
+import { counts } from './lib/batch'
 import { comparisonOf, heldFrom } from './lib/comparison'
 import { canDrawAgain, drawsOf, isDrawOf } from './lib/draws'
 import { recommendedFaceIndex } from './lib/faces'
 import { rotateAndCrop } from './lib/imageTransform'
 import { AnalyzingScreen } from './screens/AnalyzingScreen'
+import { BatchScreen } from './screens/BatchScreen'
 import { ComparePickScreen } from './screens/ComparePickScreen'
 import { CompareScreen } from './screens/CompareScreen'
 import { CameraBlockedScreen } from './screens/CameraBlockedScreen'
@@ -105,6 +108,16 @@ export default function App() {
   // screen and go when it does: a new Analysis, restarting, or holding it
   // for a Comparison (which carries the Analysis as first shown) all clear
   // them.
+  // A Batch (CONTEXT.md). Its queue runs in useBatch, here rather than on the
+  // table screen, because it keeps running while one of its rows is open.
+  const batch = useBatch()
+  const [openRowId, setOpenRowId] = useState(null)
+  const openRow =
+    phase === 'batch-row' ? batch.rows.find((row) => row.id === openRowId && row.status === 'done') : null
+  // The queue holds the graphics card while it runs; Draws and re-runs of a
+  // row wait for it to finish, pause or stop.
+  const batchBusy = batch.stage === 'running' || batch.stage === 'stopping'
+
   const [drawEntries, setDrawEntries] = useState([])
   const [drawStartedAt, setDrawStartedAt] = useState(null)
   const drawAbortRef = useRef(null)
@@ -324,18 +337,28 @@ export default function App() {
    * The picker is skipped: the face was chosen when the Analysis was made,
    * and a Draw asks again about that face, not about the photo.
    */
-  const drawAgain = useCallback(async () => {
-    if (!photo || !result) return
-    if (!canDrawAgain(drawsOf(result, drawEntries), drawAbortRef.current !== null)) return
+  const drawSubject = useMemo(
+    () =>
+      openRow
+        ? { analysis: openRow.result, file: openRow.file }
+        : result && photo
+          ? { analysis: result, file: photo.file }
+          : null,
+    [openRow, result, photo],
+  )
 
-    const analysis = result
+  const drawAgain = useCallback(async () => {
+    if (!drawSubject) return
+    const { analysis, file } = drawSubject
+    if (!canDrawAgain(drawsOf(analysis, drawEntries), drawAbortRef.current !== null)) return
+
     const id = ++drawIdRef.current
     const controller = new AbortController()
     drawAbortRef.current = controller
     setDrawStartedAt(performance.now())
 
     try {
-      const { token } = await detectFaces(photo.file, { signal: controller.signal })
+      const { token } = await detectFaces(file, { signal: controller.signal })
       const candidate = await analyzeFace(token, analysis.face_index ?? 0, {
         signal: controller.signal,
       })
@@ -359,7 +382,51 @@ export default function App() {
         setDrawStartedAt(null)
       }
     }
-  }, [photo, result, drawEntries])
+  }, [drawSubject, drawEntries])
+
+  const startBatch = useCallback(
+    (files) => {
+      batch.choose(files)
+      setPhase('batch')
+    },
+    [batch],
+  )
+
+  const openBatchRow = useCallback(
+    (id) => {
+      clearDraws()
+      setOpenRowId(id)
+      setPhase('batch-row')
+    },
+    [clearDraws],
+  )
+
+  const backToBatch = useCallback(() => {
+    clearDraws()
+    setOpenRowId(null)
+    setPhase('batch')
+  }, [clearDraws])
+
+  /**
+   * Leaving the table discards the Batch: its results live only on this page.
+   * Asks first whenever that loses something — results already in, or photos
+   * still to run — and says that the one on the graphics card finishes
+   * regardless.
+   */
+  const leaveBatch = useCallback(() => {
+    const c = counts(batch.rows)
+    const unfinished = ['running', 'stopping', 'paused'].includes(batch.stage) && c.queued > 0
+    if (unfinished || c.done > 0) {
+      const message = unfinished
+        ? 'Stop this batch and leave? Its results live only on this page, so leaving discards them. The photo being analysed now still finishes on the graphics card.'
+        : 'Leave this batch? Its results live only on this page, so leaving discards them — export the CSV first to keep them.'
+      if (!window.confirm(message)) return
+    }
+    clearDraws()
+    batch.discard()
+    setOpenRowId(null)
+    setPhase('idle')
+  }, [batch, clearDraws])
 
   /** Stops waiting for a Draw. The GPU finishes it regardless — the same
    *  honest limit the wait screen states — so this only closes the page on it. */
@@ -478,6 +545,7 @@ export default function App() {
           onFileForCrop={onFileForCrop}
           onUseCamera={openCamera}
           onCompareTwo={() => setPhase('compare-pick')}
+          onBatch={startBatch}
           rejection={rejection}
           held={held}
           onAbandonHeld={abandonComparison}
@@ -551,6 +619,53 @@ export default function App() {
         />
       )}
 
+      {phase === 'batch' && (
+        <BatchScreen
+          rows={batch.rows}
+          notAdded={batch.notAdded}
+          stage={batch.stage}
+          onStart={batch.start}
+          onStop={batch.stop}
+          onResume={batch.resume}
+          onOpen={openBatchRow}
+          onLeave={leaveBatch}
+          {...help}
+        />
+      )}
+
+      {phase === 'batch-row' && openRow && (
+        <VerdictScreen
+          result={openRow.result}
+          previewUrl={openRow.url}
+          draws={{
+            entries: drawEntries,
+            inFlight: drawStartedAt !== null,
+            elapsed: drawElapsed,
+            onDrawAgain: drawAgain,
+            onCancel: cancelDraw,
+            unavailable: batchBusy
+              ? 'Available once the batch has finished, paused or been stopped — the queue is using the graphics card.'
+              : null,
+          }}
+          batch={{
+            progress: batchProgress(batch.rows),
+            running: batchBusy,
+            onBack: backToBatch,
+            // A re-run replaces this row's Analysis, so watch it from the
+            // table rather than from a verdict that is about to change.
+            onRetry:
+              batch.stage === 'ended'
+                ? () => {
+                    batch.rerun(openRow.id)
+                    backToBatch()
+                  }
+                : null,
+          }}
+          onRestart={backToBatch}
+          {...help}
+        />
+      )}
+
       {phase === 'verdict' && result && (
         <VerdictScreen
           result={result}
@@ -609,4 +724,10 @@ export default function App() {
       <HowItWorks open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   )
+}
+
+/** "4 of 8 done" — photos that have reached an outcome, of those that were sent. */
+function batchProgress(rows) {
+  const c = counts(rows)
+  return `${c.done + c.noFace + c.failed} of ${rows.length - c.rejected} done`
 }
