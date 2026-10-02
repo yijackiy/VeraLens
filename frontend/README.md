@@ -47,7 +47,7 @@ idle ─┬─ file chosen ─────────────→ analyzing 
 
 - **/detect then /analyze, not one request.** /detect is sub-second and
   returns the face list; /analyze takes the chosen face and blocks for
-  60–90 seconds reporting no progress. The waiting screen marks stages by
+  a minute at the median (~3 at p90) reporting no progress. The waiting screen marks stages by
   typical timing and says so; it never claims to know which stage is
   running. Real progress needs an SSE or polling endpoint.
 - **More than one detected face stops at a picker** (`FacePickerScreen`)
