@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { RegisterToggle } from '../components/RegisterToggle'
 import { SaliencyMap } from '../components/SaliencyMap'
+import { Tile } from '../components/Tile'
 import { useRegister } from '../hooks/useRegister'
 import {
   agreementSummary,
@@ -233,15 +234,6 @@ function Difference({ a, b, technical, onRestart }) {
         Start over with a new photo
       </button>
     </section>
-  )
-}
-
-function Tile({ label, value, valueClass = 'text-ink-strong', borderClass = 'border-line' }) {
-  return (
-    <div className={`flex flex-col gap-1 rounded-xl border bg-tint p-4 ${borderClass}`}>
-      <span className="label-caps text-ink-muted">{label}</span>
-      <span className={`font-mono text-data-lg font-bold ${valueClass}`}>{value}</span>
-    </div>
   )
 }
 
