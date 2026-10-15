@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
@@ -153,6 +153,28 @@ describe('Draws', () => {
     // The page still leads with Draw 1's explanation; Draw 2's is below it.
     expect(screen.getByText('Draw one text.')).toBeTruthy()
     expect(screen.getByText('Draw two text.')).toBeTruthy()
+  })
+
+  it("shows each later Draw's own Fake Probability and time, as Draw 1 does", async () => {
+    await reachVerdict(analysis({ verdict: 'fake' }))
+    useRegister(/plain/i)
+
+    await drawOnce({ ...analysis({ verdict: 'real', explanation: 'Draw two text.' }), elapsed_seconds: 75 })
+
+    const drawTwo = screen.getByText('Draw two text.').parentElement
+    expect(within(drawTwo).getByText('Fake Probability')).toBeTruthy()
+    expect(within(drawTwo).getByText('30.0%')).toBeTruthy()
+    expect(within(drawTwo).getByText('1m 15s')).toBeTruthy()
+    expect(within(drawTwo).getByText(/50% threshold/i)).toBeTruthy()
+  })
+
+  it("says a Draw without an explanation shows the classifier's number alone", async () => {
+    await reachVerdict()
+    useRegister(/plain/i)
+
+    await drawOnce(analysis({ explained: false }))
+
+    expect(screen.getByText(/this is the classifier's number alone/i)).toBeTruthy()
   })
 
   it('says which signals moved, in plain language', async () => {
