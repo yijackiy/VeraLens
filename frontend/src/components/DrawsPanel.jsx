@@ -1,6 +1,8 @@
 import { Button } from './Button'
 import { Icon } from './Icon'
-import { formatClock, percent } from '../lib/analysis'
+import { ProbabilityBar } from './ProbabilityBar'
+import { Tile } from './Tile'
+import { formatClock, formatElapsed, percent } from '../lib/analysis'
 import {
   MAX_DRAWS,
   SPREAD_THRESHOLD,
@@ -290,7 +292,7 @@ function LaterDraws({ entries, analysis }) {
         }
         const { result } = entry
         return (
-          <div key={entry.id} className="flex flex-col gap-1 border-l-2 border-outline-variant pl-3">
+          <div key={entry.id} className="flex flex-col gap-3 border-l-2 border-outline-variant pl-3">
             <span className="label-caps text-ink-muted">Draw {numbers.get(entry.id)}</span>
             {result.explanation_available ? (
               <p className="m-0 text-body-sm text-ink">{result.explanation}</p>
@@ -299,9 +301,36 @@ function LaterDraws({ entries, analysis }) {
                 No explanation this time — the reply could not be read.
               </p>
             )}
+            <DrawNumbers result={result} />
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** The same two numbers Draw 1 leads with, so a later Draw reads on the same
+ *  terms. Coloured by this Draw's own Verdict, which can differ from Draw 1's
+ *  — the Findings above say so when it does. */
+function DrawNumbers({ result }) {
+  const fake = result.final_verdict === 'fake'
+  return (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Tile
+          label="Fake Probability"
+          value={percent(result.fake_probability)}
+          valueClass={fake ? 'text-error' : 'text-sage-ink'}
+          borderClass={fake ? 'border-error-container/60' : 'border-sage-tint'}
+        />
+        <Tile label="Time taken" value={formatElapsed(result.elapsed_seconds)} />
+      </div>
+      <ProbabilityBar probability={result.fake_probability} fake={fake} />
+      {!result.explanation_available && (
+        <p className="m-0 text-body-sm text-outline">
+          With no explanation to blend in, this is the classifier's number alone.
+        </p>
+      )}
     </div>
   )
 }

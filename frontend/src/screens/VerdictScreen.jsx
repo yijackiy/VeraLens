@@ -2,8 +2,10 @@ import { DrawsPanel } from '../components/DrawsPanel'
 import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
+import { ProbabilityBar } from '../components/ProbabilityBar'
 import { RegisterToggle } from '../components/RegisterToggle'
 import { SaliencyMap } from '../components/SaliencyMap'
+import { Tile } from '../components/Tile'
 import { useRegister } from '../hooks/useRegister'
 import { MODELS } from '../lib/register'
 import {
@@ -220,20 +222,7 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
           </div>
 
           <div>
-            <div className="relative">
-              <div className="h-2 overflow-hidden rounded-full bg-line">
-                <div
-                  className={`h-2 rounded-full ${isFake ? 'bg-terracotta' : 'bg-sage'}`}
-                  style={{ width: `${Math.min(100, Math.max(0, probability * 100))}%` }}
-                />
-              </div>
-              <div className="absolute -top-[5px] left-1/2 h-[18px] w-0.5 rounded-sm bg-ink opacity-60" />
-            </div>
-            <div className="label-caps mt-2.5 grid grid-cols-3 gap-2 text-outline">
-              <span className="text-left">0% · certainly real</span>
-              <span className="text-center">50% threshold</span>
-              <span className="text-right">100% · certainly fake</span>
-            </div>
+            <ProbabilityBar probability={probability} fake={isFake} />
             <p className="m-0 mt-3 text-body-sm text-outline">
               {degraded
                 ? "This is the classifier's own number, unblended — the part of VeraLens measured at 97.5% accurate."
@@ -263,15 +252,6 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
         </div>
       </div>
     </section>
-  )
-}
-
-function Tile({ label, value, valueClass = 'text-ink-strong', borderClass = 'border-line' }) {
-  return (
-    <div className={`flex flex-col gap-1 rounded-xl border bg-tint p-4 ${borderClass}`}>
-      <span className="label-caps text-ink-muted">{label}</span>
-      <span className={`font-mono text-data-lg font-bold ${valueClass}`}>{value}</span>
-    </div>
   )
 }
 
