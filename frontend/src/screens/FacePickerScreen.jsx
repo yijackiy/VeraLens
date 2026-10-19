@@ -4,6 +4,7 @@ import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { percent } from '../lib/analysis'
+import { recommendedFaceIndex } from '../lib/faces'
 
 // Below this, the classifier is reading a face stretched up to 224px rather
 // than shrunk down to it — the case it was measured on. Matches the note
@@ -20,7 +21,11 @@ const SMALL_FACE_PX = 150
  */
 export function FacePickerScreen({ previewUrl, faces, onChoose, onCancel, onHowItWorks }) {
   const [naturalSize, setNaturalSize] = useState(null)
-  const largestArea = Math.max(...faces.map((f) => f.width * f.height))
+
+  // The face this screen highlights is the one that would have run without
+  // it — the picker offers the default, it does not propose an alternative to
+  // one. Shared with App.jsx so the two cannot drift apart.
+  const recommended = recommendedFaceIndex(faces)
 
   return (
     <Page width="wide" onHome={onCancel} onHelp={onHowItWorks}>
@@ -46,7 +51,15 @@ export function FacePickerScreen({ previewUrl, faces, onChoose, onCancel, onHowI
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.5fr_1fr]">
-          <div className="relative overflow-hidden rounded-2xl border border-line bg-slate shadow-ambient">
+          {/* `self-start` is load-bearing, not spacing. The grid stretches
+              this cell to the face list's height, which is taller than the
+              photo as soon as there are two faces. The <img> keeps its own
+              height at the top of the stretched cell while the absolutely
+              positioned <svg> below fills all of it and re-centres the
+              viewBox — so every box was drawn offset by half the difference,
+              pointing at nothing. Shrink-wrapping the cell puts the image and
+              the overlay in the same box again. */}
+          <div className="relative self-start overflow-hidden rounded-2xl border border-line bg-slate shadow-ambient">
             <img
               src={previewUrl}
               alt={`The submitted photo with ${faces.length} detected faces boxed and numbered`}
@@ -66,7 +79,7 @@ export function FacePickerScreen({ previewUrl, faces, onChoose, onCancel, onHowI
                 aria-hidden="true"
               >
                 {faces.map((face) => {
-                  const isLargest = face.width * face.height === largestArea
+                  const isLargest = face.index === recommended
                   const [x1, y1] = face.bbox
                   const strokeWidth = Math.max(2, naturalSize.width / 400)
                   return (
@@ -113,7 +126,7 @@ export function FacePickerScreen({ previewUrl, faces, onChoose, onCancel, onHowI
                 key={face.index}
                 face={face}
                 previewUrl={previewUrl}
-                recommended={face.width * face.height === largestArea}
+                recommended={face.index === recommended}
                 onChoose={() => onChoose(face.index)}
               />
             ))}
@@ -133,7 +146,10 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
         recommended ? 'border-2 border-sage' : 'border-line'
       }`}
     >
-      <div className="flex items-center gap-4">
+      {/* Wraps rather than squeezes: on a phone the label and the button
+          shared one row and the label broke a word to a line. Below the
+          width where both fit, Analyse drops to a full-width row of its own. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <span
           className={`label-caps flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
             recommended ? 'bg-sage text-on-sage' : 'bg-container-high text-ink-muted'
@@ -144,9 +160,13 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
 
         <FaceThumbnail previewUrl={previewUrl} bbox={face.bbox} />
 
-        <div className="flex min-w-0 flex-grow flex-col gap-0.5">
+        <div className="flex min-w-[10rem] flex-1 flex-col gap-0.5">
+          {/* The number stays in the label even on the recommended row. It is
+              the handle every other screen uses for this face ("Face 3 of 4"),
+              and the row you are most likely to click was the one hiding it. */}
           <span className="text-body-md font-semibold text-ink-strong">
-            {recommended ? 'Largest face' : `Face ${face.index + 1}`}
+            Face {face.index + 1}
+            {recommended && ' · analysed by default'}
           </span>
           <span className="font-mono text-data-mono text-ink-muted">
             {face.width} × {face.height} · {percent(face.det_score, 0)} sure it's a face
@@ -156,7 +176,7 @@ function FaceRow({ face, previewUrl, recommended, onChoose }) {
         <Button
           variant={recommended ? 'primary' : 'secondary'}
           onClick={onChoose}
-          className="flex-shrink-0 px-5 py-2.5 text-body-sm"
+          className="w-full flex-shrink-0 px-5 py-2.5 text-body-sm sm:w-auto"
         >
           Analyse
         </Button>

@@ -3,7 +3,7 @@ import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
 import { Sidebar, CAMERA_GUIDANCE } from '../components/Sidebar'
 
-/** Screen 3 — the pause before a 60-90 second wait. */
+/** Screen 3 — the pause before a wait of a minute or more. */
 export function CameraReviewScreen({
   previewUrl,
   capturedAt,
@@ -18,12 +18,12 @@ export function CameraReviewScreen({
         <Sidebar guidance={CAMERA_GUIDANCE} onHowItWorks={onHowItWorks} />
 
         <section className="flex flex-grow flex-col gap-6">
-          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-6 shadow-ambient">
+          <div className="overflow-hidden rounded-3xl border border-line bg-paper p-4 shadow-ambient sm:p-6">
             <div className="overflow-hidden rounded-2xl bg-slate">
               <img
                 src={previewUrl}
                 alt="The photo you just captured, waiting for you to confirm it"
-                className="block h-[420px] w-full object-contain"
+                className="block h-[340px] w-full object-contain sm:h-[420px]"
               />
             </div>
 
@@ -57,8 +57,8 @@ export function CameraReviewScreen({
           <div className="flex items-start gap-4 rounded-xl bg-container px-6 py-5">
             <Icon name="schedule" className="mt-0.5 text-terracotta" size={22} />
             <p className="m-0 text-body-sm text-ink-muted">
-              Analysis takes <strong className="font-semibold">60–90 seconds</strong> and can't be
-              sped up, so it is worth a look first: is the face sharp, front‑facing, and free of
+              Analysis usually takes <strong className="font-semibold">about a minute</strong>, sometimes
+              closer to three, and can't be sped up, so it is worth a look first: is the face sharp, front‑facing, and free of
               heavy shadow? A blurred or half‑turned face is the usual reason the face detector
               finds nothing.
             </p>
