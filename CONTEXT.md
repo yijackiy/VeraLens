@@ -8,9 +8,13 @@ VeraLens decides whether a photograph of a face was synthetically generated, and
 The complete photograph a person hands to VeraLens, before any face detection — chosen from a file or captured with the camera. One term covers both sources deliberately: the pipeline cannot distinguish them, and a Submitted Photo that never yields a Face Crop is not a Verdict of REAL, it is nothing at all.
 _Avoid_: upload, input image, source image, selfie
 
+**Face Candidate**:
+One face InsightFace found in a Submitted Photo, before anything has been classified. A photo yields as many Face Candidates as it has faces; exactly one of them becomes the Face Crop. The distinction is what makes choosing a face possible rather than a re-run — a Face Candidate costs nothing to discard, because nothing has been spent on it yet.
+_Avoid_: detection, box, bbox, face option, candidate face
+
 **Face Crop**:
-The 224×224 region containing one detected face, produced by InsightFace. The only input the classifier ever sees.
-_Avoid_: thumbnail, ROI, patch
+The 224×224 region containing one detected face, produced by InsightFace. The only input the classifier ever sees. There is one per Analysis, whoever picked it — a Face Crop chosen by hand and one taken by default are the same object.
+_Avoid_: thumbnail, ROI, patch, chosen face, analysed face
 
 **Fake Probability**:
 A scalar in [0,1] expressing how synthetic a Face Crop appears. Always oriented toward fake, never toward the predicted class — a confident REAL is a Fake Probability near 0, not near 1.
@@ -29,12 +33,20 @@ Combining the classifier's Fake Probability with the reasoning layer's independe
 _Avoid_: ensemble, voting, blending
 
 **Analysis**:
-One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis.
+One complete run of the pipeline over one Submitted Photo, and everything it produced — the Face Crop, the Fake Probability, the Verdict, the Saliency Map and the written explanation. The glossary above names the parts; this is the whole. A Submitted Photo that yields no Face Crop produces no Analysis. Its Verdict and explanation come from its first Draw; later Draws add evidence about that Verdict without replacing it.
 _Avoid_: result, report, scan, detection
+
+**Draw**:
+One run of the reasoning layer against an Analysis's fixed Face Crop, counting its internal parse retries as part of the one Draw. The reasoning layer samples, so two Draws of the same face can cite different signals, word the explanation differently, or fail to produce one at all. Only the reasoning layer's contribution differs between Draws; a Draw whose classifier Fake Probability differs from its Analysis's is not a Draw of that Analysis.
+_Avoid_: re-run, sample, retry, attempt, replicate
 
 **Held Analysis**:
 The one Analysis parked aside while a second photo is submitted, so the two can be read together. Exactly one is ever held; it lives in the browser for as long as the tab does and is never stored. Holding is what turns the next submission into the second half of a Comparison rather than a fresh start.
 _Avoid_: pinned, saved, bookmarked, first result, photo 1
+
+**Batch**:
+Several Submitted Photos queued together and analysed one at a time, each on its own: every photo yields its own Analysis, or a stated reason it yielded none, and a photo with no Face Crop stays in the Batch as exactly that, never as a Verdict of REAL. A Batch is a queue, not a measurement — its counts describe these photos and say nothing about how accurate VeraLens is.
+_Avoid_: bulk scan, test run, benchmark, results set, folder
 
 **Comparison**:
 Two Analyses read against one shared Fake Probability scale. The distance between them is a distance and nothing more — it supports no ranking, and neither Analysis becomes more certain for having been placed next to another.

@@ -15,13 +15,18 @@ fake images from 2.23 to 3.03 (paired, +0.91, sign test p = 0.0015).
 
 ## Consequences
 
-- **This bug is live in production.** `backend/app/api/main.py` still serves
-  `FORENSIC_PROMPT`, so every explanation the app has produced carries a
-  confidence copied from the classifier. `fuse()` consumes that field, so the
-  fusion layer has been weighting a corrupted signal — its `llm_fake_prob` is
+- **Production uses the guided prompt.** `run_reasoning()` picks
+  `GUIDED_FORENSIC_PROMPT` whenever it is given a score, and
+  `backend/app/pipeline.py` calls it that way, so every live Analysis gets
+  the finding in words. The switch landed in the same commit as this ADR
+  (`5a017cd`). Before it, the app served `FORENSIC_PROMPT`, and `fuse()` was
+  weighting a confidence copied from the classifier — its `llm_fake_prob` was
   a function of the classifier's own score, not an independent opinion.
-  Switching production to the guided prompt is a one-line change and is
-  recommended; it is left as an explicit decision rather than made silently.
+  Explanations produced before that commit carry the bug.
+- `FORENSIC_PROMPT` stays in the code only to reproduce the bug for the
+  write-up. It is reachable solely through `run_reasoning(...,
+  legacy_numeric=True)`, which nothing in the app or the evaluation scripts
+  passes.
 - The measured ablation is unaffected: it ran blind, and blind never
   interpolates a score.
 - Numeric anchoring of this kind is a property of small instruction-tuned

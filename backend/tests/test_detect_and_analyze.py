@@ -4,7 +4,7 @@
 Detection is left real — it is ~0.2s on this hardware's default CPU config
 (ADR 0011) and InsightFace's buffalo_l weights are already on disk, so there
 is no reason to fake it. run_pipeline_from_crop() is mocked in every /analyze
-test: it is the classifier + Grad-CAM + Qwen3-VL half, 15-90s and the one
+test: it is the classifier + Grad-CAM + Qwen3-VL half, a minute at the median and the one
 documented to crash intermittently at model load, and none of that is what
 these tests are checking. What they check is the contract between the two
 requests — the token, the face list, and that a token is spent once.
@@ -17,6 +17,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.api import main as api_main
+from backend.app.preprocessing import face_pipeline
+from backend.app.preprocessing.face_pipeline import recommended_face_index
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "deepfake_faces")
 ONE_FACE_IMAGE = os.path.join(DATA_DIR, "real", "test_00000000.png")
@@ -43,7 +45,7 @@ def clean_pending():
     api_main._pending.clear()
 
 
-def _fake_pipeline_result(crop_bgr, face_count):
+def _fake_pipeline_result(crop_bgr, face_count, face_index=0):
     return {
         "final_verdict": "real",
         "fake_probability": 0.1,
@@ -54,6 +56,7 @@ def _fake_pipeline_result(crop_bgr, face_count):
         "explanation": "stub",
         "heatmap_url": "/static/heatmaps/stub.png",
         "faces_found": face_count,
+        "face_index": face_index,
         "elapsed_seconds": 0.0,
     }
 
@@ -128,8 +131,10 @@ class TestAnalyze:
         monkeypatch.setattr(
             api_main,
             "run_pipeline_from_crop",
-            lambda crop_bgr, face_count: calls.append((crop_bgr.shape, face_count))
-            or _fake_pipeline_result(crop_bgr, face_count),
+            lambda crop_bgr, face_count, face_index: calls.append(
+                (crop_bgr.shape, face_count, face_index)
+            )
+            or _fake_pipeline_result(crop_bgr, face_count, face_index),
         )
 
         with open(ONE_FACE_IMAGE, "rb") as f:
@@ -141,7 +146,7 @@ class TestAnalyze:
 
         assert response.status_code == 200
         assert response.json()["faces_found"] == 1
-        assert calls == [((224, 224, 3), 1)]
+        assert calls == [((224, 224, 3), 1, 0)]
         # Single-use: the temp upload and the pending entry are both gone.
         assert not os.path.exists(upload_path)
         assert token not in api_main._pending
@@ -149,7 +154,11 @@ class TestAnalyze:
     @requires_sample_image
     def test_a_spent_token_cannot_be_replayed(self, client, monkeypatch):
         monkeypatch.setattr(
-            api_main, "run_pipeline_from_crop", lambda crop_bgr, face_count: _fake_pipeline_result(crop_bgr, face_count)
+            api_main,
+            "run_pipeline_from_crop",
+            lambda crop_bgr, face_count, face_index: _fake_pipeline_result(
+                crop_bgr, face_count, face_index
+            ),
         )
         with open(ONE_FACE_IMAGE, "rb") as f:
             detected = client.post("/detect", files={"file": ("test.png", f, "image/png")})
@@ -160,3 +169,69 @@ class TestAnalyze:
 
         assert first.status_code == 200
         assert second.status_code == 404
+
+
+class TestRecommendedFaceIndex:
+    """
+    Which Face Candidate runs when nobody chooses.
+
+    Kept next to the API tests because the rule is what the picker and the
+    no-picker path have to agree on: the frontend writes it a second time in
+    lib/faces.js, and the two are kept honest by asserting the same cases on
+    both sides rather than by shipping the answer over the wire.
+    """
+
+    def test_prefers_the_largest_face_over_the_leftmost(self):
+        faces = [
+            {"bbox": [0, 0, 40, 40], "det_score": 0.9},
+            {"bbox": [100, 0, 400, 380], "det_score": 0.9},
+            {"bbox": [500, 0, 560, 60], "det_score": 0.9},
+        ]
+        assert recommended_face_index(faces) == 1
+
+    def test_compares_area_not_either_dimension_alone(self):
+        faces = [
+            {"bbox": [0, 0, 400, 20], "det_score": 0.9},   # widest
+            {"bbox": [0, 0, 100, 100], "det_score": 0.9},  # largest by area
+        ]
+        assert recommended_face_index(faces) == 1
+
+    def test_breaks_an_area_tie_on_det_score(self):
+        # The bug this guards: expressed as `area == max(area)` the answer was
+        # a set, not a face, and two equally-sized faces both belonged to it.
+        faces = [
+            {"bbox": [0, 0, 200, 200], "det_score": 0.71},
+            {"bbox": [300, 0, 500, 200], "det_score": 0.94},
+            {"bbox": [600, 0, 800, 200], "det_score": 0.83},
+        ]
+        assert recommended_face_index(faces) == 1
+
+    def test_a_single_face_is_its_own_answer(self):
+        assert recommended_face_index([{"bbox": [0, 0, 10, 10], "det_score": 0.9}]) == 0
+
+    @requires_sample_image
+    def test_detect_face_uses_it(self, monkeypatch):
+        """detect_face() is the no-picker path the evaluation scripts take. It
+        took faces[0] until this change, so it disagreed with the picker's
+        recommendation on every photo where leftmost and largest differ."""
+        seen = {}
+
+        def fake_detect_all(path):
+            faces = [
+                {"bbox": [0, 0, 40, 40], "det_score": 0.9},
+                {"bbox": [100, 0, 400, 380], "det_score": 0.9},
+            ]
+            return np.full((400, 500, 3), 128, dtype=np.uint8), faces
+
+        monkeypatch.setattr(face_pipeline, "detect_all_faces", fake_detect_all)
+        monkeypatch.setattr(
+            face_pipeline,
+            "crop_face_from_bbox",
+            lambda img, bbox: seen.setdefault("bbox", bbox) or np.zeros((224, 224, 3)),
+        )
+
+        _crop, count, index = face_pipeline.detect_face("ignored.png")
+
+        assert count == 2
+        assert index == 1
+        assert seen["bbox"] == [100, 0, 400, 380]

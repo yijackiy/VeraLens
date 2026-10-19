@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { analyzeFace, detectFaces } from './api/client'
 import { HowItWorks } from './components/HowItWorks'
+import { useBatch } from './hooks/useBatch'
 import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
 import { rejectionReason } from './lib/analysis'
+import { counts } from './lib/batch'
 import { comparisonOf, heldFrom } from './lib/comparison'
+import { canDrawAgain, drawsOf, isDrawOf } from './lib/draws'
+import { recommendedFaceIndex } from './lib/faces'
 import { rotateAndCrop } from './lib/imageTransform'
 import { AnalyzingScreen } from './screens/AnalyzingScreen'
+import { BatchScreen } from './screens/BatchScreen'
 import { ComparePickScreen } from './screens/ComparePickScreen'
 import { CompareScreen } from './screens/CompareScreen'
 import { CameraBlockedScreen } from './screens/CameraBlockedScreen'
@@ -43,12 +48,18 @@ import { VerdictScreen } from './screens/VerdictScreen'
  * history screen and nothing is persisted — a Comparison dies with the tab.
  *
  * `analyzing` covers two backend requests, not one: /detect (sub-second) and
- * then /analyze (the 60-90 second half). Both show the same screen — the gap
+ * then /analyze (the slow half: a minute at the median). Both show the same screen — the gap
  * is too short to be worth a state of its own — except when /detect finds
  * more than one face, which is what `face-pick` is for. The queued second
  * photo (compare-two-up-front) never reaches `face-pick`: there is no screen
- * free to interrupt into while photo A's verdict is on screen, so it silently
- * keeps the leftmost face, the same way the single-face path always did.
+ * free to interrupt into while photo A's verdict is on screen, so it takes
+ * the recommended face, the same way the single-face path always did.
+ *
+ * Which means a Comparison's two sides can reach the same screen by different
+ * routes: via ComparePickScreen, B is auto-picked while A was chosen; via
+ * hold-then-analyse, both were chosen. Neither screen claims which happened.
+ * Both name the face they describe instead, which is the fact that matters
+ * and the only one a stored Analysis can actually vouch for.
  *
  * `crop` is the only phase that runs before /detect rather than after a file
  * is chosen — it is reached only from the "Straighten first" card, and not
@@ -89,6 +100,36 @@ export default function App() {
   // Set only while phase is 'face-pick': the subject /detect ran on, its
   // token, and the faces it found. Read once, by whichever face is chosen.
   const [detected, setDetected] = useState(null)
+
+  // Draws of the Analysis on the verdict screen (CONTEXT.md, "Draw"). Draw 1
+  // is `result` itself; these are the later attempts, each one of
+  // { status: 'drawn' | 'mismatch' | 'failed', result?, detail? } — only
+  // 'drawn' ones count, see lib/draws.js. They belong to the one Analysis on
+  // screen and go when it does: a new Analysis, restarting, or holding it
+  // for a Comparison (which carries the Analysis as first shown) all clear
+  // them.
+  // A Batch (CONTEXT.md). Its queue runs in useBatch, here rather than on the
+  // table screen, because it keeps running while one of its rows is open.
+  const batch = useBatch()
+  const [openRowId, setOpenRowId] = useState(null)
+  const openRow =
+    phase === 'batch-row' ? batch.rows.find((row) => row.id === openRowId && row.status === 'done') : null
+  // The queue holds the graphics card while it runs; Draws and re-runs of a
+  // row wait for it to finish, pause or stop.
+  const batchBusy = batch.stage === 'running' || batch.stage === 'stopping'
+
+  const [drawEntries, setDrawEntries] = useState([])
+  const [drawStartedAt, setDrawStartedAt] = useState(null)
+  const drawAbortRef = useRef(null)
+  const drawIdRef = useRef(0)
+  const drawElapsed = useElapsed(drawStartedAt)
+
+  const clearDraws = useCallback(() => {
+    drawAbortRef.current?.abort()
+    drawAbortRef.current = null
+    setDrawStartedAt(null)
+    setDrawEntries([])
+  }, [])
 
   // One object URL at a time. The browser holds the only copy of the submitted
   // photo — the backend keeps the Face Crop and the heatmap, never the original.
@@ -133,6 +174,7 @@ export default function App() {
         setResult(null)
         setProblem(null)
         setPhase('analyzing')
+        clearDraws()
       }
       setDetected(null)
       // The clock starts here, not when /detect was sent — a demo timing a
@@ -144,7 +186,13 @@ export default function App() {
       abortRef.current = controller
 
       try {
-        const analysis = await analyzeFace(token, faceIndex, { signal: controller.signal })
+        // The backend echoes face_index (ADR 0012); a backend started before
+        // that change does not, and the browser knows the answer anyway —
+        // it just sent it. The response wins wherever it has one.
+        const analysis = {
+          face_index: faceIndex,
+          ...(await analyzeFace(token, faceIndex, { signal: controller.signal })),
+        }
         const second = queuedRef.current
 
         if (second) {
@@ -173,7 +221,7 @@ export default function App() {
         abortRef.current = null
       }
     },
-    [adopt, hold],
+    [adopt, hold, clearDraws],
   )
   useEffect(() => {
     analyzeChosenFaceRef.current = analyzeChosenFace
@@ -204,7 +252,9 @@ export default function App() {
           setPhase('face-pick')
           return
         }
-        await analyzeChosenFaceRef.current?.(subject, token, faces[0].index, { background })
+        await analyzeChosenFaceRef.current?.(subject, token, recommendedFaceIndex(faces), {
+          background,
+        })
       } catch (error) {
         if (error.kind === 'aborted') return
         setProblem({ kind: error.kind, detail: error.message })
@@ -223,6 +273,7 @@ export default function App() {
 
   const restart = useCallback(() => {
     abortRef.current?.abort()
+    clearDraws()
     camera.stop()
     setPhoto((previous) => {
       if (previous) URL.revokeObjectURL(previous.url)
@@ -239,7 +290,7 @@ export default function App() {
     setProblem(null)
     setRejection(null)
     setPhase('idle')
-  }, [camera, hold])
+  }, [camera, clearDraws, hold])
 
   /**
    * Both photos at once. The queue is what makes the first response route to
@@ -262,12 +313,128 @@ export default function App() {
    */
   const startComparison = useCallback(() => {
     if (!photo || !result) return
+    // A Comparison compares Verdicts, and Draws never change a Verdict — so
+    // the held Analysis travels as first shown and its Draws stay here.
+    clearDraws()
     hold(heldFrom(photo, result))
     setPhoto(null)
     setResult(null)
     setRejection(null)
     setPhase('idle')
-  }, [hold, photo, result])
+  }, [clearDraws, hold, photo, result])
+
+  /**
+   * Ask the reasoning layer again about the Analysis on screen.
+   *
+   * Re-submits the photo rather than calling a draw-only endpoint: the upload
+   * is gone after /analyze (ADR 0012's token is single-use), and a second
+   * held-state store on the server buys nothing the check below does not.
+   * The classifier and detector re-run too — both deterministic — so the
+   * result is only a Draw of this Analysis if its classifier score matches.
+   * If it does not, the page says so instead of presenting a different face,
+   * or a different measurement, as variance.
+   *
+   * The picker is skipped: the face was chosen when the Analysis was made,
+   * and a Draw asks again about that face, not about the photo.
+   */
+  const drawSubject = useMemo(
+    () =>
+      openRow
+        ? { analysis: openRow.result, file: openRow.file }
+        : result && photo
+          ? { analysis: result, file: photo.file }
+          : null,
+    [openRow, result, photo],
+  )
+
+  const drawAgain = useCallback(async () => {
+    if (!drawSubject) return
+    const { analysis, file } = drawSubject
+    if (!canDrawAgain(drawsOf(analysis, drawEntries), drawAbortRef.current !== null)) return
+
+    const id = ++drawIdRef.current
+    const controller = new AbortController()
+    drawAbortRef.current = controller
+    setDrawStartedAt(performance.now())
+
+    try {
+      const { token } = await detectFaces(file, { signal: controller.signal })
+      const candidate = await analyzeFace(token, analysis.face_index ?? 0, {
+        signal: controller.signal,
+      })
+      // Aborted after the response had already landed — restart, hold, or a
+      // new Analysis. The Analysis this was a Draw of is gone, and its entry
+      // must not appear under whichever one replaced it.
+      if (controller.signal.aborted) return
+      setDrawEntries((previous) => [
+        ...previous,
+        { id, status: isDrawOf(analysis, candidate) ? 'drawn' : 'mismatch', result: candidate },
+      ])
+    } catch (error) {
+      // A request that failed produced no Draw, so it is shown but not
+      // counted — unlike a Draw that ran and produced no explanation.
+      if (error.kind !== 'aborted') {
+        setDrawEntries((previous) => [...previous, { id, status: 'failed', detail: error.message }])
+      }
+    } finally {
+      if (drawAbortRef.current === controller) {
+        drawAbortRef.current = null
+        setDrawStartedAt(null)
+      }
+    }
+  }, [drawSubject, drawEntries])
+
+  const startBatch = useCallback(
+    (files) => {
+      batch.choose(files)
+      setPhase('batch')
+    },
+    [batch],
+  )
+
+  const openBatchRow = useCallback(
+    (id) => {
+      clearDraws()
+      setOpenRowId(id)
+      setPhase('batch-row')
+    },
+    [clearDraws],
+  )
+
+  const backToBatch = useCallback(() => {
+    clearDraws()
+    setOpenRowId(null)
+    setPhase('batch')
+  }, [clearDraws])
+
+  /**
+   * Leaving the table discards the Batch: its results live only on this page.
+   * Asks first whenever that loses something — results already in, or photos
+   * still to run — and says that the one on the graphics card finishes
+   * regardless.
+   */
+  const leaveBatch = useCallback(() => {
+    const c = counts(batch.rows)
+    const unfinished = ['running', 'stopping', 'paused'].includes(batch.stage) && c.queued > 0
+    if (unfinished || c.done > 0) {
+      const message = unfinished
+        ? 'Stop this upload and leave? Its results live only on this page, so leaving discards them. The photo being analysed now still finishes on the graphics card.'
+        : 'Leave this upload? Its results live only on this page, so leaving discards them — export the CSV first to keep them.'
+      if (!window.confirm(message)) return
+    }
+    clearDraws()
+    batch.discard()
+    setOpenRowId(null)
+    setPhase('idle')
+  }, [batch, clearDraws])
+
+  /** Stops waiting for a Draw. The GPU finishes it regardless — the same
+   *  honest limit the wait screen states — so this only closes the page on it. */
+  const cancelDraw = useCallback(() => {
+    drawAbortRef.current?.abort()
+    drawAbortRef.current = null
+    setDrawStartedAt(null)
+  }, [])
 
   /** Give up on the second photo and go back to the first one's verdict. */
   const abandonComparison = useCallback(() => {
@@ -378,6 +545,7 @@ export default function App() {
           onFileForCrop={onFileForCrop}
           onUseCamera={openCamera}
           onCompareTwo={() => setPhase('compare-pick')}
+          onBatch={startBatch}
           rejection={rejection}
           held={held}
           onAbandonHeld={abandonComparison}
@@ -451,10 +619,65 @@ export default function App() {
         />
       )}
 
+      {phase === 'batch' && (
+        <BatchScreen
+          rows={batch.rows}
+          notAdded={batch.notAdded}
+          stage={batch.stage}
+          onStart={batch.start}
+          onStop={batch.stop}
+          onResume={batch.resume}
+          onRetryFailed={batch.retryFailed}
+          onOpen={openBatchRow}
+          onLeave={leaveBatch}
+          {...help}
+        />
+      )}
+
+      {phase === 'batch-row' && openRow && (
+        <VerdictScreen
+          result={openRow.result}
+          previewUrl={openRow.url}
+          draws={{
+            entries: drawEntries,
+            inFlight: drawStartedAt !== null,
+            elapsed: drawElapsed,
+            onDrawAgain: drawAgain,
+            onCancel: cancelDraw,
+            unavailable: batchBusy
+              ? 'Available once this upload has finished, paused or been stopped — the queue is using the graphics card.'
+              : null,
+          }}
+          batch={{
+            progress: batchProgress(batch.rows),
+            running: batchBusy,
+            onBack: backToBatch,
+            // A re-run replaces this row's Analysis, so watch it from the
+            // table rather than from a verdict that is about to change.
+            onRetry:
+              batch.stage === 'ended'
+                ? () => {
+                    batch.rerun(openRow.id)
+                    backToBatch()
+                  }
+                : null,
+          }}
+          onRestart={backToBatch}
+          {...help}
+        />
+      )}
+
       {phase === 'verdict' && result && (
         <VerdictScreen
           result={result}
           previewUrl={photo?.url}
+          draws={{
+            entries: drawEntries,
+            inFlight: drawStartedAt !== null,
+            elapsed: drawElapsed,
+            onDrawAgain: drawAgain,
+            onCancel: cancelDraw,
+          }}
           onRestart={restart}
           onRetry={() => photo && runAnalysis(photo)}
           onCompare={startComparison}
@@ -502,4 +725,10 @@ export default function App() {
       <HowItWorks open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   )
+}
+
+/** "4 of 8 done" — photos that have reached an outcome, of those that were sent. */
+function batchProgress(rows) {
+  const c = counts(rows)
+  return `${c.done + c.noFace + c.failed} of ${rows.length - c.rejected} done`
 }

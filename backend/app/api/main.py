@@ -102,7 +102,8 @@ def analyze(token: str = Form(...), face_index: int = Form(...)):
 
     Deliberately `def`, not `async def`.
 
-    run_pipeline_from_crop() blocks for 15-90 seconds. On an async endpoint
+    run_pipeline_from_crop() blocks for a minute at the median and
+    nearer three at p90. On an async endpoint
     that runs directly on the event loop, so nothing else is served for the
     whole analysis — including /health, which exists to be polled every 10
     minutes and would time out exactly when the server is busiest. A plain
@@ -121,7 +122,7 @@ def analyze(token: str = Form(...), face_index: int = Form(...)):
         img = cv2.imread(path)
         crop = crop_face_from_bbox(img, faces[face_index]["bbox"])
         with _gpu_lock:
-            result = run_pipeline_from_crop(crop, len(faces))
+            result = run_pipeline_from_crop(crop, len(faces), face_index)
     finally:
         os.remove(path)
     return result

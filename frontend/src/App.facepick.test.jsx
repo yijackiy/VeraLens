@@ -26,7 +26,7 @@ vi.mock('./api/client', async () => {
   }
 })
 
-function analysisFor(probability) {
+function analysisFor(probability, { faces_found = 2, face_index = 0 } = {}) {
   return {
     final_verdict: probability > 0.5 ? 'fake' : 'real',
     fake_probability: probability,
@@ -36,7 +36,8 @@ function analysisFor(probability) {
     explanation: 'A sentence about the face.',
     signals: [],
     heatmap_url: '/static/heatmaps/x.png',
-    faces_found: 2,
+    faces_found,
+    face_index,
     elapsed_seconds: 40,
   }
 }
@@ -101,7 +102,7 @@ describe('the multi-face picker', () => {
 
   it('analyses the chosen face and reaches its verdict', async () => {
     detectFaces.mockResolvedValueOnce(twoFaceDetection())
-    analyzeFace.mockResolvedValueOnce(analysisFor(0.12))
+    analyzeFace.mockResolvedValueOnce(analysisFor(0.12, { face_index: 1 }))
     render(<App />)
     choose()
     await screen.findByText(/2 faces here\. Which one\?/i)
@@ -111,6 +112,74 @@ describe('the multi-face picker', () => {
 
     await screen.findByText(/how the verdict was reached/i)
     expect(analyzeFace).toHaveBeenCalledWith('tok', 1, expect.anything())
+  })
+
+  it('recommends exactly one face, even when two are the same size', async () => {
+    // The bug this replaces: "largest" was `area === max(area)`, a predicate
+    // two equal faces both satisfied, so the picker offered two defaults.
+    detectFaces.mockResolvedValueOnce({
+      token: 'tok',
+      faces: [
+        { index: 0, bbox: [0, 0, 200, 200], det_score: 0.7, width: 200, height: 200 },
+        { index: 1, bbox: [300, 0, 500, 200], det_score: 0.95, width: 200, height: 200 },
+      ],
+    })
+    render(<App />)
+    choose()
+    await screen.findByText(/2 faces here\. Which one\?/i)
+
+    const defaults = screen.getAllByText(/analysed by default/i)
+    expect(defaults).toHaveLength(1)
+    // And it is the one the detector was surer about, not the leftmost.
+    expect(screen.getByText(/Face 2 · analysed by default/i)).toBeTruthy()
+  })
+
+  it('names the analysed face on the verdict, rather than claiming the first', async () => {
+    // The verdict used to read "VeraLens analysed the first one only" for
+    // every multi-face photo — false the moment the picker let you choose
+    // anything else.
+    detectFaces.mockResolvedValueOnce(twoFaceDetection())
+    analyzeFace.mockResolvedValueOnce(analysisFor(0.12, { faces_found: 4, face_index: 2 }))
+    render(<App />)
+    choose()
+    await screen.findByText(/2 faces here\. Which one\?/i)
+    fireEvent.click(screen.getAllByRole('button', { name: /^analyse$/i })[1])
+
+    await screen.findByText(/how the verdict was reached/i)
+    expect(screen.getByText(/Face 3 of 4/i)).toBeTruthy()
+    expect(screen.queryByText(/analysed the first one/i)).toBeNull()
+  })
+
+  it('says nothing about faces when the photo had only one', async () => {
+    detectFaces.mockResolvedValueOnce({
+      token: 'tok',
+      faces: [{ index: 0, bbox: [10, 10, 210, 210], det_score: 0.9, width: 200, height: 200 }],
+    })
+    analyzeFace.mockResolvedValueOnce(analysisFor(0.12, { faces_found: 1, face_index: 0 }))
+    render(<App />)
+    choose()
+
+    await screen.findByText(/how the verdict was reached/i)
+    expect(screen.queryByText(/Face 1 of 1/i)).toBeNull()
+  })
+
+  it('skips the picker in the background, taking the largest rather than the leftmost', async () => {
+    // The compare-two-up-front path: photo B runs without a stop to choose,
+    // and must land on the same face the picker would have recommended.
+    detectFaces.mockResolvedValue({
+      token: 'tok',
+      faces: [
+        { index: 0, bbox: [0, 0, 40, 40], det_score: 0.9, width: 40, height: 40 },
+        { index: 1, bbox: [100, 0, 400, 380], det_score: 0.9, width: 300, height: 380 },
+      ],
+    })
+    analyzeFace.mockResolvedValue(analysisFor(0.12))
+    render(<App />)
+    choose()
+
+    await screen.findByText(/2 faces here\. Which one\?/i)
+    // Foreground still asks. What it recommends is face 2, not face 1.
+    expect(screen.getByText(/Face 2 · analysed by default/i)).toBeTruthy()
   })
 
   it('never shows the picker for a single detected face', async () => {

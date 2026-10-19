@@ -17,6 +17,7 @@ export function UploadScreen({
   onFileForCrop,
   onUseCamera,
   onCompareTwo,
+  onBatch,
   onHowItWorks,
   rejection,
   held,
@@ -24,6 +25,7 @@ export function UploadScreen({
 }) {
   const inputRef = useRef(null)
   const cropInputRef = useRef(null)
+  const batchInputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const backend = useBackendStatus()
 
@@ -46,7 +48,7 @@ export function UploadScreen({
               <div className="flex items-start gap-3.5">
                 <Icon name="compare" className="mt-0.5 text-sage-ink" size={22} />
                 <p className="m-0 text-body-sm text-sage-ink">
-                  <span className="font-semibold">{held.photo.file.name}</span> is held as photo A.
+                  <span className="font-semibold break-all">{held.photo.file.name}</span> is held as photo A.
                   Whatever you choose next becomes photo B, and the two will be shown on one scale.
                 </p>
               </div>
@@ -141,7 +143,7 @@ export function UploadScreen({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <button
               type="button"
               onClick={onUseCamera}
@@ -193,6 +195,37 @@ export function UploadScreen({
               onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (file) onFileForCrop(file)
+                event.target.value = ''
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => batchInputRef.current?.click()}
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-line bg-paper p-6 text-left shadow-soft hover:border-outline-variant"
+            >
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-container-high">
+                <Icon name="table_rows" className="text-ink-muted" />
+              </div>
+              <div>
+                <h3 className="m-0 text-body-md font-semibold text-ink-strong">Multiple-Upload</h3>
+                <p className="m-0 mt-0.5 text-body-sm text-ink-muted">
+                  Up to 20, checked one by one, results in a table
+                </p>
+              </div>
+            </button>
+            {/* No `accept` filter on purpose: a file VeraLens cannot read still
+                becomes a row that says why, rather than vanishing from the
+                picker without a word. */}
+            <input
+              ref={batchInputRef}
+              type="file"
+              multiple
+              aria-label="Choose photos for a multiple upload"
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files || [])
+                if (files.length) onBatch(files)
                 event.target.value = ''
               }}
             />

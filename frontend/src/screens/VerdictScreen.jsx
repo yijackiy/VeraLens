@@ -1,7 +1,11 @@
+import { DrawsPanel } from '../components/DrawsPanel'
+import { FaceNotice } from '../components/FaceNotice'
 import { Icon } from '../components/Icon'
 import { Page } from '../components/Layout'
+import { ProbabilityBar } from '../components/ProbabilityBar'
 import { RegisterToggle } from '../components/RegisterToggle'
-import { asset } from '../api/client'
+import { SaliencyMap } from '../components/SaliencyMap'
+import { Tile } from '../components/Tile'
 import { useRegister } from '../hooks/useRegister'
 import { MODELS } from '../lib/register'
 import {
@@ -33,6 +37,8 @@ export function VerdictScreen({
   onCompare,
   onHowItWorks,
   pending,
+  draws,
+  batch,
 }) {
   const isFake = result.final_verdict === 'fake'
   const degraded = !result.explanation_available
@@ -40,17 +46,21 @@ export function VerdictScreen({
   const decisive = Math.abs(result.fake_probability - THRESHOLD) > 0.35
   const agreed = reasoning === null ? null : reasoning > THRESHOLD === isFake
   const { register, setRegister, technical } = useRegister()
+  // A row of a Batch: every exit leads back to the table, never to the
+  // upload screen, because the queue is still running behind this page and
+  // "Analyse another photo" or "Compare" would abandon it.
+  const back = batch ? batch.onBack : onRestart
 
   return (
-    <Page width="wide" textured onHome={onRestart} onHelp={onHowItWorks}>
+    <Page width="wide" textured onHome={back} onHelp={onHowItWorks}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button
           type="button"
-          onClick={onRestart}
+          onClick={back}
           className="flex w-fit cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-ink-muted hover:text-terracotta-ink"
         >
           <Icon name="arrow_back" size={20} />
-          <span className="label-caps">Back to uploads</span>
+          <span className="label-caps">{batch ? 'Back to this upload' : 'Back to uploads'}</span>
         </button>
 
         <RegisterToggle register={register} onChange={setRegister} />
@@ -64,7 +74,7 @@ export function VerdictScreen({
           <div className="flex items-start gap-3.5">
             <Icon name="hourglass_top" className="vl-blink mt-0.5 text-sage-ink" size={22} />
             <p className="m-0 text-body-sm text-sage-ink">
-              This is photo A. <span className="font-semibold">{pending.name}</span> is being
+              This is photo A. <span className="font-semibold break-all">{pending.name}</span> is being
               analysed now — {formatClock(pending.elapsed)} so far. The comparison opens on its own
               when it lands.
             </p>
@@ -75,6 +85,22 @@ export function VerdictScreen({
             className="label-caps cursor-pointer rounded-lg border border-sage-deep bg-transparent px-4 py-2.5 text-sage-ink hover:bg-sage-tint"
           >
             Stop and keep A
+          </button>
+        </div>
+      )}
+
+      {batch && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-container-high px-6 py-4">
+          <p className="m-0 text-body-sm text-ink-muted">
+            <span className="font-semibold text-ink-strong">Multiple-Upload · {batch.progress}</span>
+            {batch.running && ' — the queue keeps running while you read this.'}
+          </p>
+          <button
+            type="button"
+            onClick={batch.onBack}
+            className="label-caps cursor-pointer rounded-lg border border-outline bg-transparent px-4 py-2 text-ink hover:bg-container"
+          >
+            Back to this upload
           </button>
         </div>
       )}
@@ -95,7 +121,7 @@ export function VerdictScreen({
             What the reasoning layer wrote
           </h2>
           {degraded ? (
-            <NoExplanation onRetry={onRetry} />
+            <NoExplanation onRetry={batch ? batch.onRetry : onRetry} />
           ) : (
             <Explanation result={result} technical={technical} />
           )}
@@ -111,11 +137,27 @@ export function VerdictScreen({
             degraded={degraded}
             isFake={isFake}
             technical={technical}
-            onRestart={onRestart}
-            onCompare={pending ? null : onCompare}
+            onRestart={back}
+            restartLabel={batch ? 'Back to this upload' : 'Analyse another photo'}
+            onCompare={pending || batch ? null : onCompare}
           />
         </div>
       </div>
+
+      {/* Absent while photo B of a Comparison is running: the graphics card is
+          busy with B, and a Draw would queue behind it for minutes. */}
+      {draws && (
+        <DrawsPanel
+          analysis={result}
+          entries={draws.entries}
+          inFlight={draws.inFlight}
+          elapsed={draws.elapsed}
+          technical={technical}
+          onDrawAgain={draws.onDrawAgain}
+          onCancel={draws.onCancel}
+          unavailable={draws.unavailable}
+        />
+      )}
     </Page>
   )
 }
@@ -154,8 +196,8 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
               className={isFake ? 'text-terracotta' : 'text-sage'}
               size={32}
             />
-            <h1 className="m-0 font-serif text-verdict-lg font-bold text-ink-strong">
-              {isFake ? 'Synthetic face detected' : 'No sign of generation'}
+            <h1 className="m-0 font-serif text-verdict-md font-bold text-ink-strong sm:text-verdict-lg">
+              {isFake ? 'Generated face detected' : 'No sign of generation'}
             </h1>
           </div>
 
@@ -180,78 +222,36 @@ function Hero({ result, previewUrl, isFake, degraded, decisive, agreed, technica
           </div>
 
           <div>
-            <div className="relative">
-              <div className="h-2 overflow-hidden rounded-full bg-line">
-                <div
-                  className={`h-2 rounded-full ${isFake ? 'bg-terracotta' : 'bg-sage'}`}
-                  style={{ width: `${Math.min(100, Math.max(0, probability * 100))}%` }}
-                />
-              </div>
-              <div className="absolute -top-[5px] left-1/2 h-[18px] w-0.5 rounded-sm bg-ink opacity-60" />
-            </div>
-            <div className="label-caps mt-2.5 grid grid-cols-3 gap-2 text-outline">
-              <span className="text-left">0% · certainly real</span>
-              <span className="text-center">50% threshold</span>
-              <span className="text-right">100% · certainly fake</span>
-            </div>
+            <ProbabilityBar probability={probability} fake={isFake} />
             <p className="m-0 mt-3 text-body-sm text-outline">
               {degraded
                 ? "This is the classifier's own number, unblended — the part of VeraLens measured at 97.5% accurate."
                 : isFake
-                  ? 'Fake Probability always points toward fake, whatever the verdict — a confident Real sits near zero, not near one.'
+                  ? 'Fake Probability always points toward fake, whatever the verdict — a confident Real sits near 0%, not near 100%.'
                   : 'Fake Probability always points toward fake, whatever the verdict — sitting this close to zero is what a confident Real looks like.'}
             </p>
           </div>
 
-          {result.faces_found > 1 && (
-            <div className="flex items-start gap-3.5 rounded-xl bg-terracotta-tint px-5 py-4">
-              <Icon name="groups" className="mt-0.5 text-terracotta-ink" size={22} />
-              <p className="m-0 text-body-sm text-terracotta-deep">
-                {result.faces_found} faces were found in this photo. VeraLens analysed the first one
-                only — everything on this page describes that face, not the others.
-              </p>
-            </div>
-          )}
+          <FaceNotice result={result} />
         </div>
 
         <div className="relative">
-          <div className="group relative h-80 w-full overflow-hidden rounded-2xl border border-line bg-slate shadow-ambient">
-            <img
-              src={asset(result.heatmap_url)}
-              alt="Grad-CAM saliency map over the analysed face crop"
-              className="h-full w-full object-contain"
-            />
-            {previewUrl && (
-              <img
-                src={previewUrl}
-                alt="The photograph you submitted"
-                className="absolute inset-0 h-full w-full bg-slate object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-              />
-            )}
-            <div className="glass absolute right-4 bottom-4 flex items-center gap-2 rounded-lg px-3 py-1.5">
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${isFake ? 'bg-terracotta' : 'bg-sage'}`}
-              />
-              <span className="label-caps tracking-[0.12em] text-ink-strong">Saliency Map</span>
-            </div>
-          </div>
+          <SaliencyMap
+            heatmapUrl={result.heatmap_url}
+            photoUrl={previewUrl}
+            heatmapAlt="Grad-CAM saliency map over the analysed face crop"
+            photoAlt="The photograph you submitted"
+            fake={isFake}
+            className="h-64 rounded-2xl shadow-ambient sm:h-80"
+          />
           <p className="m-0 mt-3 text-body-sm text-ink-muted lg:text-right">
             Grad‑CAM over the Face Crop —{' '}
             {isFake ? 'warmer means it moved the number more' : 'little here pushed toward fake'}.
-            {previewUrl && ' Hover to see your original photo.'}
+            {previewUrl && ' Tap or hover over it to see your original photo.'}
           </p>
         </div>
       </div>
     </section>
-  )
-}
-
-function Tile({ label, value, valueClass = 'text-ink-strong', borderClass = 'border-line' }) {
-  return (
-    <div className={`flex flex-col gap-1 rounded-xl border bg-tint p-4 ${borderClass}`}>
-      <span className="label-caps text-ink-muted">{label}</span>
-      <span className={`font-mono text-data-lg font-bold ${valueClass}`}>{value}</span>
-    </div>
   )
 }
 
@@ -357,23 +357,44 @@ function NoExplanation({ onRetry }) {
         than guessing at what it meant.
       </p>
 
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
-      >
-        <Icon name="refresh" size={20} />
-        Try this photo again
-      </button>
-      {/* The design offered "Ask for the explanation again", which would need an
-          endpoint that re-runs the reasoning layer over a cached crop. There
-          isn't one: this re-runs the whole pipeline, and says so. */}
-      <p className="label-caps m-0 mt-5 text-outline">Runs the whole pipeline again · 60–90 sec</p>
+      {onRetry ? (
+        <>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border-none bg-sage-deep px-8 py-3 text-body-md font-semibold text-on-sage shadow-sage hover:bg-sage-ink"
+          >
+            <Icon name="refresh" size={20} />
+            Try this photo again
+          </button>
+          {/* The design offered "Ask for the explanation again", which would need an
+              endpoint that re-runs the reasoning layer over a cached crop. There
+              isn't one: this re-runs the whole pipeline, and says so. */}
+          <p className="label-caps m-0 mt-5 text-outline">
+            Runs the whole pipeline again · about a minute, sometimes three
+          </p>
+        </>
+      ) : (
+        // A row of a running Batch: trying again needs the graphics card the
+        // queue is using, so it waits until the queue is done or stopped.
+        <p className="label-caps m-0 mt-8 text-outline">
+          Trying again is available once this upload has finished or been stopped
+        </p>
+      )}
     </div>
   )
 }
 
-function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, onCompare }) {
+function BlendCard({
+  result,
+  reasoning,
+  degraded,
+  isFake,
+  technical,
+  onRestart,
+  restartLabel,
+  onCompare,
+}) {
   return (
     <div className="flex h-full flex-col gap-4 rounded-xl border border-line bg-paper p-6 shadow-ambient">
       <div className="mb-2 flex items-center gap-2">
@@ -455,7 +476,7 @@ function BlendCard({ result, reasoning, degraded, isFake, technical, onRestart, 
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-outline-variant/50 bg-container py-3 text-body-md font-semibold text-ink-strong hover:bg-container-high"
         >
           <Icon name="restart_alt" size={20} />
-          Analyse another photo
+          {restartLabel}
         </button>
       </div>
     </div>
