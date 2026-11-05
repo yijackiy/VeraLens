@@ -85,10 +85,11 @@ def append(row: dict) -> None:
         conn.execute(judge_scores.insert().values(**row))
 
 
-def calls_today() -> int:
+def calls_today(provider: str | None = None) -> int:
     """
-    API attempts in the last 24h, used to stay inside the free-tier daily
-    quota. Sums `attempts` rather than counting rows: one row can cost up to
+    API attempts in the last 24h, used to stay inside the daily quota. Pass
+    the provider so a local-judge row never eats the Gemini budget (None
+    counts every provider). Sums `attempts` rather than counting rows: one row can cost up to
     five calls when the backoff retries, and the provider charges the quota for
     every one of them. Cache hits write nothing and so cost nothing.
 
@@ -98,22 +99,36 @@ def calls_today() -> int:
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=1)
     stmt = (select(func.coalesce(func.sum(judge_scores.c.attempts), 0))
             .where(judge_scores.c.created_at >= since))
+    if provider is not None:
+        stmt = stmt.where(judge_scores.c.provider == provider)
     with get_engine().connect() as conn:
         return int(conn.execute(stmt).scalar_one())
 
 
-def summary() -> dict:
-    """Counts for the evaluation write-up: total, successful, failed."""
+def summary(provider: str | None = None) -> dict:
+    """
+    Counts for the evaluation write-up: total, successful, failed.
+
+    Scoped to one provider so the local-judge rows and the Gemini rows are
+    never averaged together; None summarises every row and is only meant for
+    a sanity check, not for a reported number.
+    """
+    def scoped(stmt):
+        if provider is not None:
+            stmt = stmt.where(judge_scores.c.provider == provider)
+        return stmt
+
     with get_engine().connect() as conn:
         total = conn.execute(
-            select(func.count()).select_from(judge_scores)).scalar_one()
+            scoped(select(func.count()).select_from(judge_scores))).scalar_one()
         failed = conn.execute(
-            select(func.count()).select_from(judge_scores)
-            .where(judge_scores.c.ok.is_(False))).scalar_one()
+            scoped(select(func.count()).select_from(judge_scores)
+                   .where(judge_scores.c.ok.is_(False)))).scalar_one()
         mean = conn.execute(
-            select(func.avg(judge_scores.c.score))
-            .where(judge_scores.c.ok.is_(True))).scalar_one()
+            scoped(select(func.avg(judge_scores.c.score))
+                   .where(judge_scores.c.ok.is_(True)))).scalar_one()
     return {
+        "provider": provider or "all",
         "total_rows": int(total),
         "scored": int(total) - int(failed),
         "failed": int(failed),

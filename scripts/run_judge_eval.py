@@ -8,7 +8,8 @@ Input is JSONL, one record per line:
 
 Usage:
     python scripts/run_judge_eval.py data/eval/explanations.jsonl
-    python scripts/run_judge_eval.py --summary        # just print the table stats
+    python scripts/run_judge_eval.py --summary        # stats for JUDGE_PROVIDER
+    python scripts/run_judge_eval.py --summary --provider local|gemini|all
     python scripts/run_judge_eval.py --dry-run <file> # parse input, no API calls
 
 Re-running the same file makes zero API calls: every score is cached on
@@ -23,6 +24,7 @@ import sys
 # Allow running from the veralens/ root with `python scripts/...`
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from backend.app.config import JUDGE_PROVIDER
 from backend.app.eval import storage
 from backend.app.eval.runner import score_many
 
@@ -50,13 +52,17 @@ def main():
     parser.add_argument("input", nargs="?", help="JSONL file of explanations")
     parser.add_argument("--summary", action="store_true",
                         help="print judge_scores stats and exit")
+    parser.add_argument("--provider", choices=["local", "gemini", "all"],
+                        help="provider to summarise (default: JUDGE_PROVIDER)")
     parser.add_argument("--dry-run", action="store_true",
                         help="validate the input file without calling the judge")
     args = parser.parse_args()
 
     if args.summary:
         storage.get_engine()
-        print(json.dumps(storage.summary(), indent=2))
+        chosen = args.provider or JUDGE_PROVIDER
+        print(json.dumps(storage.summary(None if chosen == "all" else chosen),
+                         indent=2))
         return
 
     if not args.input:
