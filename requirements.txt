@@ -40,7 +40,7 @@ scikit-learn
 matplotlib
 
 # --- Evaluation: judge layer (eval-only, never in the inference path) ---
-google-genai                # Gemini 2.5 Flash judge
+google-genai                # Gemini 3.8 Flash judge
 sqlalchemy                  # append-only score storage
 psycopg[binary]             # Postgres driver (Neon/Supabase)
 tenacity                    # retry with exponential backoff + jitter

@@ -11,9 +11,15 @@ an exact sign test - a mean can shift on a handful of images, and the count of
 images that actually moved is what says whether the shift is real.
 
 Usage:
-    python scripts/compare_informed.py
+    python scripts/compare_informed.py                  # local judge (default)
+    python scripts/compare_informed.py --provider gemini
+
+Each judge writes its own file, so a Gemini run never overwrites the local
+judge's numbers: informed_vs_blind.json (local) and
+informed_vs_blind_gemini.json.
 """
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -30,7 +36,14 @@ from sqlalchemy import select
 
 from backend.app.eval import storage
 
-OUT = os.path.join("results", "informed_vs_blind.json")
+RESULTS_DIR = "results"
+
+
+def out_path(provider: str) -> str:
+    """Local keeps its original filename; any other judge gets a suffix."""
+    name = ("informed_vs_blind.json" if provider == "local"
+            else f"informed_vs_blind_{provider}.json")
+    return os.path.join(RESULTS_DIR, name)
 
 
 def sign_test(pairs):
@@ -53,13 +66,21 @@ def mean(xs):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Compare blind vs informed Explanation Quality.")
+    parser.add_argument("--provider", choices=["local", "gemini"],
+                        default="local",
+                        help="which judge's scores to compare (default: local)")
+    args = parser.parse_args()
+    out = out_path(args.provider)
+
     engine = storage.get_engine()
     t = storage.judge_scores
     with engine.connect() as conn:
         # Ordered by id so a re-scored sample_id (e.g. after a prompt fix)
         # overwrites the earlier row rather than being averaged with it.
         rows = conn.execute(
-            select(t.c.sample_id, t.c.score, t.c.ok).order_by(t.c.id)).all()
+            select(t.c.sample_id, t.c.score, t.c.ok)
+            .where(t.c.provider == args.provider).order_by(t.c.id)).all()
 
     blind, informed = {}, {}
     for r in rows:
@@ -71,8 +92,8 @@ def main():
             blind[r.sample_id] = r.score
 
     if not informed:
-        sys.exit("No informed scores found. Run scripts/run_informed_pipeline.py "
-                 "first.")
+        sys.exit(f"No informed scores from the {args.provider} judge. Run "
+                 f"scripts/run_judge_eval.py on the informed corpus first.")
 
     def by_class(d):
         out = defaultdict(list)
@@ -84,7 +105,8 @@ def main():
     shared = sorted(set(blind) & set(informed))
 
     print("=" * 66)
-    print("EXPLANATION QUALITY - blind vs production (informed)")
+    print(f"EXPLANATION QUALITY - blind vs production (informed) "
+          f"[{args.provider} judge]")
     print("=" * 66)
     print(f"  {'':<8}{'blind':>18}{'informed':>18}")
     print(f"  {'':<8}{'n':>7}{'mean':>11}{'n':>7}{'mean':>11}")
@@ -129,16 +151,20 @@ def main():
         print("\n  No overlapping images - cannot pair. Compare the group "
               "means above with care.")
 
-    print("\n  Note: both modes were graded by the same judge. If that judge "
-          "is\n  the local Qwen, it is grading its own output in both arms "
-          "(ADR 0007),\n  so the comparison is fairer than either absolute "
-          "number.")
+    if args.provider == "local":
+        print("\n  Note: both modes were graded by the same judge, the local "
+              "Qwen, so it is\n  grading its own output in both arms "
+              "(ADR 0007); the comparison is fairer\n  than either absolute "
+              "number.")
+    else:
+        print("\n  Note: both modes were graded by the same judge, which did "
+              "not write\n  either set of explanations.")
     print("=" * 66)
 
     import json
-    with open(OUT, "w", encoding="utf-8") as fh:
+    with open(out, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2)
-    print(f"\nWrote {OUT}")
+    print(f"\nWrote {out}")
 
 
 if __name__ == "__main__":

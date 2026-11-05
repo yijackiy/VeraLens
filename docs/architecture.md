@@ -256,10 +256,12 @@ flowchart LR
     ACC & ARMS & AUTO & PAIR --> REP["report_results.py<br/>→ results/RESULTS.md"]
 ```
 
-The judge that produced the reported scores was the **on-device** implementation — the
-same Qwen3-VL-2B weights that wrote the explanations, because no `GEMINI_API_KEY` was
-configured. Treat its absolute means as an optimistic bound (ADR 0007); the paired
-blind-vs-informed difference is the trustworthy part, since one judge grades both arms.
+Two judges have scored the explanations, and their rows are kept apart. The first was the
+**on-device** implementation — the same Qwen3-VL-2B weights that wrote the explanations —
+so treat its absolute means as an optimistic bound (ADR 0007). The second is **Gemini 3.8
+Flash**, which wrote none of them (ADR 0014). The paired blind-vs-informed difference is
+the part to trust in both, since one judge grades both arms; `compare_informed.py
+--provider local|gemini` reports each separately.
 
 ---
 

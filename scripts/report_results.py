@@ -51,8 +51,11 @@ def load_records():
     return [r for r in rows if "llm_verdict" in r]
 
 
-def load_judge():
-    """Read the judge_scores table, if the judge has been run.
+def load_judge(provider="local"):
+    """Read one judge's rows from judge_scores, if that judge has been run.
+
+    Scoped to a provider: local and Gemini rows share the table, and averaging
+    them would report a number that describes neither judge.
 
     Returns None rather than raising when the table is absent or empty, so the
     report still renders before step 4.4 has been run.
@@ -66,7 +69,8 @@ def load_judge():
         with engine.connect() as conn:
             rows = conn.execute(select(
                 t.c.sample_id, t.c.score, t.c.ok, t.c.provider,
-                t.c.model_version, t.c.rubric_version, t.c.temperature)).all()
+                t.c.model_version, t.c.rubric_version, t.c.temperature)
+                .where(t.c.provider == provider).order_by(t.c.id)).all()
     except Exception:
         return None
 
@@ -469,6 +473,37 @@ def main():
                 "change; scores are cached per model, so both can be reported.",
             ]
         out.append("")
+
+    # ── judge (4.4), Gemini — reported beside the local judge, never merged ──
+    gem = load_judge("gemini")
+    if gem is not None:
+        out += [
+            "### Gemini judge (independent of the explanation author)",
+            "",
+            f"Provider `{gem['provider']}`, model `{gem['model_version']}`, "
+            f"rubric `{gem['rubric_version']}`, temperature "
+            f"{gem['temperature']}.",
+            "",
+            "| Quantity | Value |",
+            "| --- | --- |",
+            f"| Explanations scored | {gem['scored']} |",
+            f"| Failed calls | {gem['failed']} |",
+            f"| Mean score (1-5) | {gem['mean_score']} |",
+        ]
+        if gem.get("by_class"):
+            out += ["", "| True class | n | Mean score |", "| --- | --- | --- |"]
+            for cls, v in sorted(gem["by_class"].items()):
+                out.append(f"| {cls} | {v['n']} | {v['mean']:.2f} |")
+        if gem.get("distribution"):
+            out += ["", "| Score | Count |", "| --- | --- |"]
+            for score in sorted(gem["distribution"]):
+                out.append(f"| {score} | {gem['distribution'][score]} |")
+        out += [
+            "",
+            "Scores from the local judge above and this one are separate",
+            "measurements and are not pooled.",
+            "",
+        ]
 
     # ── blind vs production (informed) ──
     comp = load("informed_vs_blind.json")

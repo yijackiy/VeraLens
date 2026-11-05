@@ -113,9 +113,9 @@ default is ever a real key.
 | Variable | Default | Notes |
 |---|---|---|
 | `JUDGE_PROVIDER` | `gemini` | `local` runs the on-device Qwen judge; no data leaves the machine |
-| `GEMINI_API_KEY` | — | Required for `gemini`. Free tier: 10 req/min, 250 req/day |
-| `JUDGE_MODEL` | `gemini-2.5-flash` | The exact resolved version is recorded on every score row |
-| `JUDGE_RPM` / `JUDGE_DAILY_QUOTA` | `10` / `250` | Client-side throttle; backoff alone will not save a batch run |
+| `GEMINI_API_KEY` | — | Required for `gemini`. Prepaid; a full 563-explanation run is about $1–2 (ADR 0014) |
+| `JUDGE_MODEL` | `gemini-3.8-flash` | The exact resolved version is recorded on every score row |
+| `JUDGE_RPM` / `JUDGE_DAILY_QUOTA` | `10` / `250` | Client-side throttle (free-tier defaults; the paid Gemini run used `30` / `800`). Backoff alone will not save a batch run |
 | `DATABASE_URL` | SQLite `data/judge.db` | Dev fallback. Final results belong in Neon/Supabase |
 | `VERALENS_FACE_DEVICE` | `cpu` | `cuda` is 0.2 s faster but holds ~805 MiB for the process lifetime (ADR 0011) |
 

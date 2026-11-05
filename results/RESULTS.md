@@ -184,6 +184,32 @@ so this mean is an optimistic bound rather than an independent
 assessment (ADR 0007). Re-running under Gemini is a config
 change; scores are cached per model, so both can be reported.
 
+### Gemini judge (independent of the explanation author)
+
+Provider `gemini`, model `gemini-3.8-flash`, rubric `v1`, temperature 0.0.
+
+| Quantity | Value |
+| --- | --- |
+| Explanations scored | 563 |
+| Failed calls | 0 |
+| Mean score (1-5) | 3.542 |
+
+| True class | n | Mean score |
+| --- | --- | --- |
+| fake | 188 | 2.24 |
+| real | 184 | 4.46 |
+
+| Score | Count |
+| --- | --- |
+| 1 | 54 |
+| 2 | 85 |
+| 3 | 174 |
+| 4 | 2 |
+| 5 | 248 |
+
+Scores from the local judge above and this one are separate
+measurements and are not pooled.
+
 ## Explanation Quality — blind vs production configuration
 
 The ablation runs the reasoning layer blind so the LLM-Only arm
