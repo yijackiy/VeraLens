@@ -1,8 +1,9 @@
 """
-Step 4.4b — Gemini 2.5 Flash judge.
+Step 4.4b — Gemini 3.8 Flash judge.
 
-Free tier: 10 req/min, 250 req/day, EUR 0. Chosen over the paid alternatives:
-free, newer, and stronger on judge-human agreement.
+Run on a prepaid account (ADR 0014). Chosen for being independent of the model
+that wrote the explanations, newer than 2.5 Flash, and strong on judge-human
+agreement.
 
 Three properties make the scores usable as thesis evidence:
   - schema-constrained JSON output, so nothing is ever parsed by string matching
@@ -46,12 +47,14 @@ class GeminiJudge:
                     candidate_count=1,
                     response_mime_type="application/json",
                     response_schema=SCHEMA,    # no regex parsing, ever
-                    # Gemini 2.5 Flash thinks by default. Thinking tokens count
-                    # against the output budget (an empty `parsed` when they
-                    # exhaust it) and reintroduce run-to-run variation that
-                    # temperature=0 is supposed to remove. A 1-5 rubric score
-                    # does not need a scratchpad.
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    # Gemini 3.8 Flash always thinks (default medium) and
+                    # cannot be switched off; thinking_budget is not supported
+                    # on 3.x. Thinking tokens count against the output budget
+                    # (an empty `parsed` when they exhaust it) and may
+                    # reintroduce run-to-run variation that temperature=0 is
+                    # supposed to remove. A 1-5 rubric score does not need a
+                    # deep scratchpad, so use the lowest supported level.
+                    thinking_config=types.ThinkingConfig(thinking_level="low"),
                 ),
             )
         except Exception as exc:
@@ -79,7 +82,7 @@ class GeminiJudge:
         return {
             "score": parsed["score"],
             "rationale": parsed.get("rationale", ""),
-            # Exact resolved version, not the "gemini-2.5-flash" alias we asked
+            # Exact resolved version, not the "gemini-3.8-flash" alias we asked
             # for — aliases get repointed at new models without notice.
             "model_version": getattr(resp, "model_version", None) or self.model,
             "raw": resp.text,

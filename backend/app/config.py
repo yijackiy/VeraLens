@@ -37,7 +37,7 @@ def _int_env(name: str, default: int) -> int:
 
 
 JUDGE_PROVIDER = (os.environ.get("JUDGE_PROVIDER") or "gemini").strip()
-JUDGE_MODEL = (os.environ.get("JUDGE_MODEL") or "gemini-2.5-flash").strip()
+JUDGE_MODEL = (os.environ.get("JUDGE_MODEL") or "gemini-3.8-flash").strip()
 JUDGE_RPM = _int_env("JUDGE_RPM", 10)
 JUDGE_DAILY_QUOTA = _int_env("JUDGE_DAILY_QUOTA", 250)
 
