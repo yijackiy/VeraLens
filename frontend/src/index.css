@@ -221,6 +221,13 @@
   }
 }
 
+/* The wordmark's ink is near-black on transparent. In the dark theme that is
+   dark-on-dark, so it is inverted to a light warm grey instead of being
+   shipped twice. Only the header logo carries this class. */
+:root[data-theme="dark"] .vl-logo {
+  filter: invert(1);
+}
+
 @keyframes vl-gentle-pulse {
   0%, 100% { opacity: 0.35; transform: scale(0.95); }
   50% { opacity: 0.85; transform: scale(1.05); }

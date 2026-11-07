@@ -1,3 +1,4 @@
+import logo from '../assets/veralens-logo.png'
 import { Icon } from './Icon'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -29,13 +30,26 @@ function Header({ width, onHome, onHelp }) {
       <div
         className={`mx-auto flex h-20 w-full items-center justify-between gap-4 px-5 md:px-16 ${WIDTHS[width]}`}
       >
+        {/* The wordmark is a picture, so its accessible name is the alt text.
+            Its ink is near-black on a transparent background, which is right
+            on the cream surface and invisible on the dark one — index.css
+            inverts it there rather than shipping a second file. */}
         <button
           type="button"
           onClick={onHome}
-          className="flex cursor-pointer items-center gap-2 border-none bg-transparent p-0 font-serif text-verdict-md font-bold text-ink-strong"
+          className="flex flex-shrink-0 cursor-pointer items-center border-none bg-transparent p-0"
         >
-          <Icon name="lens_blur" fill className="text-terracotta" size={30} />
-          VeraLens
+          <img
+            src={logo}
+            alt="VeraLens — deepfake detection"
+            // Sized by height per breakpoint: the logo is about 5:1, so a
+            // fixed height that reads well on a desktop would run into the two
+            // icon buttons on a phone. The mark adds height without adding
+            // letters, so it runs larger than a bare wordmark would.
+            className="vl-logo h-10 w-auto sm:h-12 lg:h-14"
+            width={293}
+            height={56}
+          />
         </button>
         {/* Hidden on phones, where it pushed the two icon buttons
             off the edge: the wordmark beside it does the same thing. */}
