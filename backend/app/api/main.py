@@ -9,6 +9,7 @@ from fastapi import FastAPI, Form, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend.app import progress
 from backend.app.pipeline import run_pipeline_from_crop, STATIC_DIR
 from backend.app.preprocessing.face_pipeline import crop_face_from_bbox, detect_all_faces
 
@@ -119,10 +120,29 @@ def analyze(token: str = Form(...), face_index: int = Form(...)):
         raise HTTPException(status_code=400, detail="face_index is out of range.")
 
     try:
-        img = cv2.imread(path)
-        crop = crop_face_from_bbox(img, faces[face_index]["bbox"])
-        with _gpu_lock:
-            result = run_pipeline_from_crop(crop, len(faces), face_index)
+        # Tracked from before the lock, not inside it: an Analysis waiting its
+        # turn behind another is a stage the interface can show, and it is the
+        # one a second photo spends its first minute in.
+        with progress.track(token):
+            img = cv2.imread(path)
+            crop = crop_face_from_bbox(img, faces[face_index]["bbox"])
+            with _gpu_lock:
+                result = run_pipeline_from_crop(crop, len(faces), face_index)
     finally:
         os.remove(path)
     return result
+
+
+@app.get("/progress/{token}")
+def analysis_progress(token: str):
+    """
+    Where the Analysis for this token has got to — see progress.py, and ADR
+    0015 for why this is a stage and never a percentage.
+
+    A plain `def` for the same reason as /analyze: it is answered from the
+    threadpool, so it stays responsive while a pipeline holds the GPU, which is
+    the only time anyone asks. Unknown tokens answer 200 with no stage rather
+    than 404 — the interface's first ask can arrive before /analyze has
+    registered the token, and that is a healthy start, not an error.
+    """
+    return progress.snapshot(token) or {"stage": None}

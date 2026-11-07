@@ -4,6 +4,7 @@ import { HowItWorks } from './components/HowItWorks'
 import { useBatch } from './hooks/useBatch'
 import { useCamera } from './hooks/useCamera'
 import { useElapsed } from './hooks/useElapsed'
+import { useProgress } from './hooks/useProgress'
 import { rejectionReason } from './lib/analysis'
 import { counts } from './lib/batch'
 import { comparisonOf, heldFrom } from './lib/comparison'
@@ -75,12 +76,17 @@ export default function App() {
   const [blockReason, setBlockReason] = useState(null)
   const [helpOpen, setHelpOpen] = useState(false)
   const [startedAt, setStartedAt] = useState(null)
+  // The /detect token of the Analysis the waiting screen is for — the key the
+  // backend files its progress under. Foreground only: a Comparison's second
+  // photo runs behind a verdict and does not own the screen.
+  const [analysisToken, setAnalysisToken] = useState(null)
 
   const camera = useCamera()
   const abortRef = useRef(null)
   // 'comparing' shows photo A's verdict while photo B is still running, so the
   // clock has to keep going past the analyzing screen.
   const elapsed = useElapsed(phase === 'analyzing' || phase === 'comparing' ? startedAt : null)
+  const progress = useProgress(phase === 'analyzing' ? analysisToken : null)
 
   // A ref beside the state because runAnalysis reads it at the moment the
   // response lands, and a closure captured before "compare with another" was
@@ -174,6 +180,7 @@ export default function App() {
         setResult(null)
         setProblem(null)
         setPhase('analyzing')
+        setAnalysisToken(token)
         clearDraws()
       }
       setDetected(null)
@@ -599,6 +606,7 @@ export default function App() {
           fileName={photo.file.name}
           elapsed={elapsed}
           queuedName={queued?.name}
+          progress={progress}
           onCancel={() => {
             abortRef.current?.abort()
             setPhase('idle')

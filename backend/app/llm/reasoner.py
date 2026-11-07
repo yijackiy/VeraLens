@@ -2,7 +2,9 @@ import json
 import re
 
 from PIL import Image
+from transformers.generation.streamers import BaseStreamer
 
+from backend.app import progress
 from backend.app.llm.model import load_qwen
 from backend.app.llm.prompts import (BLIND_FORENSIC_PROMPT, FORENSIC_PROMPT,
                                      GUIDED_FORENSIC_PROMPT,
@@ -24,6 +26,43 @@ MAX_NEW_TOKENS = 512
 SAMPLING = {"do_sample": True, "temperature": 0.7, "top_p": 0.8, "top_k": 20}
 
 VALID_VERDICTS = ("real", "fake")
+
+
+class _TokenCounter(BaseStreamer):
+    """
+    Reports how many tokens an attempt has written so far, as generate()
+    produces them.
+
+    Writing the explanation is nearly all of the wait, and until now it was
+    the one part of it that said nothing. A count is the one thing about it
+    that is known: how many tokens there will be is not (the reply ends when
+    the model stops, not at a length), so this feeds a counter in the
+    interface and never a bar that could fill.
+
+    A streamer observes generation and cannot alter it: SAMPLING, the seed
+    state and the tokens drawn are exactly what they were without it, which is
+    what keeps the reported Explanation Quality numbers describing this code
+    (ADR 0013).
+    """
+
+    def __init__(self, attempt: int):
+        self.attempt = attempt
+        self.tokens = 0
+        self._prompt_seen = False
+
+    def put(self, value):
+        # generate() hands the streamer the prompt first and then each new
+        # token. The prompt is not something the model wrote.
+        if not self._prompt_seen:
+            self._prompt_seen = True
+            return
+        self.tokens += int(value.numel())
+        progress.report("writing", attempt=self.attempt,
+                        max_attempts=MAX_RETRIES, tokens=self.tokens)
+
+    def end(self):
+        pass
+
 
 _JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -158,6 +197,10 @@ def run_reasoning(face_crop_pil: Image.Image,
     legacy_numeric=True restores that broken behaviour. It exists only to
     reproduce the bug for the write-up and must not be used in the app.
     """
+    # Reported before the call, not after: on the first Analysis since the
+    # server started this is the stretch that loads ~4GB of weights, and it is
+    # the one a person watching the screen would otherwise have no word for.
+    progress.report("loading")
     model, processor = load_qwen()
     if fake_score is None:
         prompt = BLIND_FORENSIC_PROMPT.format()
@@ -180,7 +223,7 @@ def run_reasoning(face_crop_pil: Image.Image,
     ).to(model.device)
 
     last_raw = ""
-    for _attempt in range(MAX_RETRIES):
+    for attempt in range(1, MAX_RETRIES + 1):
         # Every attempt, the first included, is a fresh sample. This loop
         # used to say the first was greedy and only retries sampled; neither
         # was true — do_sample was never set, so all of them inherited the
@@ -190,7 +233,10 @@ def run_reasoning(face_crop_pil: Image.Image,
         # These attempts are all one Draw (CONTEXT.md). A parse failure
         # retried into a success is a single Draw that produced an
         # explanation, not two Draws.
-        output = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, **SAMPLING)
+        progress.report("writing", attempt=attempt,
+                        max_attempts=MAX_RETRIES, tokens=0)
+        output = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS,
+                                streamer=_TokenCounter(attempt), **SAMPLING)
         # Only decode the newly generated tokens, not the echoed prompt.
         new_tokens = output[:, inputs["input_ids"].shape[1]:]
         text = processor.batch_decode(new_tokens, skip_special_tokens=True)[0]

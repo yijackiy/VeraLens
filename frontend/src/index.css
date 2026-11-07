@@ -232,6 +232,10 @@
 @keyframes vl-spin {
   to { transform: rotate(360deg); }
 }
+@keyframes vl-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
 @keyframes vl-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -241,7 +245,18 @@
 .vl-float { animation: vl-float 6s ease-in-out infinite; }
 .vl-spin { animation: vl-spin 3.2s linear infinite; }
 .vl-blink { animation: vl-blink 2s ease-in-out infinite; }
+/* The running step of the progress bar. A highlight sliding across says "this
+   is happening", and by never ending at the right-hand edge says nothing about
+   how far along it is — which is the point. */
+.vl-sweep { position: relative; overflow: hidden; }
+.vl-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: vl-sweep 1.8s linear infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .vl-pulse, .vl-float, .vl-spin, .vl-blink { animation: none; }
+  .vl-pulse, .vl-float, .vl-spin, .vl-blink, .vl-sweep::after { animation: none; }
 }

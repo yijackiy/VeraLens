@@ -16,7 +16,7 @@ The backend has to be running too, from the repo root:
 ..\venv\Scripts\python.exe -m uvicorn backend.app.api.main:app --port 8000
 ```
 
-The dev server proxies `/detect`, `/analyze`, `/health` and `/static` to port
+The dev server proxies `/detect`, `/analyze`, `/progress`, `/health` and `/static` to port
 8000, so the browser only ever talks to one origin and CORS never enters the
 picture. Set `VITE_API_BASE` only if the API lives somewhere else.
 
@@ -47,9 +47,15 @@ idle ─┬─ file chosen ─────────────→ analyzing 
 
 - **/detect then /analyze, not one request.** /detect is sub-second and
   returns the face list; /analyze takes the chosen face and blocks for
-  a minute at the median (~3 at p90) reporting no progress. The waiting screen marks stages by
-  typical timing and says so; it never claims to know which stage is
-  running. Real progress needs an SSE or polling endpoint.
+  a minute at the median (~3 at p90) and answers once, at the end.
+- **The waiting screen shows steps and a token count, never a percentage.**
+  While /analyze blocks, `hooks/useProgress` asks `GET /progress/{token}` once a
+  second and the screen marks four steps from what the server says it is on
+  (`lib/progress.js`). The last step is nearly all of the wait and has no
+  length, so it gets a plain "Still writing — working, not stuck" heartbeat (the token count is its hover text) instead of a fill. With no
+  report yet — the first second, or an older backend — it falls back to
+  marking steps from typical timing and says so. See ADR 0015 before adding a
+  fill; there is nothing true to drive one with.
 - **More than one detected face stops at a picker** (`FacePickerScreen`)
   before /analyze is ever called — nothing has been classified yet at that
   point. Exactly one face skips the picker silently, the way it always has.
