@@ -10,6 +10,8 @@ these tests are checking. What they check is the contract between the two
 requests — the token, the face list, and that a token is spent once.
 """
 import os
+import threading
+import time
 
 import cv2
 import numpy as np
@@ -36,13 +38,38 @@ def client():
 
 @pytest.fixture(autouse=True)
 def clean_pending():
-    """Isolation: a failed test must not leak a token into the next one."""
+    """Isolation: a failed test must not leak a token or a job into the next one."""
     api_main._pending.clear()
+    api_main._jobs.clear()
     yield
-    for path, _faces in api_main._pending.values():
+    for path, _faces, _created in api_main._pending.values():
         if os.path.exists(path):
             os.remove(path)
     api_main._pending.clear()
+    api_main._jobs.clear()
+
+
+def _wait_for_result(client, token, timeout=10.0):
+    """Poll GET /result/{token} the way the browser does, until it stops
+    answering 202. The pipeline is faked in these tests, so this is fast."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        response = client.get(f"/result/{token}")
+        if response.status_code != 202:
+            return response
+        time.sleep(0.02)
+    raise AssertionError(f"analysis {token} still running after {timeout}s")
+
+
+def _pending_upload(tmp_path, token, faces=None):
+    upload = tmp_path / f"{token}.jpg"
+    cv2.imwrite(str(upload), np.full((64, 64, 3), 128, dtype=np.uint8))
+    api_main._pending[token] = (
+        str(upload),
+        faces or [{"bbox": [0, 0, 10, 10], "det_score": 0.9}],
+        time.monotonic(),
+    )
+    return upload
 
 
 def _fake_pipeline_result(crop_bgr, face_count, face_index=0):
@@ -96,7 +123,7 @@ class TestDetect:
 
         token = body["token"]
         assert token in api_main._pending
-        path, faces = api_main._pending[token]
+        path, faces, _created = api_main._pending[token]
         assert os.path.exists(path)
         assert faces == [
             {"bbox": face["bbox"], "det_score": face["det_score"]},
@@ -111,13 +138,8 @@ class TestAnalyze:
     def test_out_of_range_face_index_is_400_and_cleans_up_the_upload(
         self, client, tmp_path
     ):
-        upload = tmp_path / "photo.jpg"
-        cv2.imwrite(str(upload), np.full((64, 64, 3), 128, dtype=np.uint8))
         token = "t-out-of-range"
-        api_main._pending[token] = (
-            str(upload),
-            [{"bbox": [0, 0, 10, 10], "det_score": 0.9}],
-        )
+        upload = _pending_upload(tmp_path, token)
 
         response = client.post("/analyze", data={"token": token, "face_index": 5})
 
@@ -140,10 +162,13 @@ class TestAnalyze:
         with open(ONE_FACE_IMAGE, "rb") as f:
             detected = client.post("/detect", files={"file": ("test.png", f, "image/png")})
         token = detected.json()["token"]
-        upload_path, _ = api_main._pending[token]
+        upload_path, _, _ = api_main._pending[token]
 
-        response = client.post("/analyze", data={"token": token, "face_index": 0})
+        started = client.post("/analyze", data={"token": token, "face_index": 0})
+        assert started.status_code == 202
+        assert started.json() == {"token": token, "status": "running"}
 
+        response = _wait_for_result(client, token)
         assert response.status_code == 200
         assert response.json()["faces_found"] == 1
         assert calls == [((224, 224, 3), 1, 0)]
@@ -167,8 +192,126 @@ class TestAnalyze:
         first = client.post("/analyze", data={"token": token, "face_index": 0})
         second = client.post("/analyze", data={"token": token, "face_index": 0})
 
-        assert first.status_code == 200
+        assert first.status_code == 202
         assert second.status_code == 404
+        assert _wait_for_result(client, token).status_code == 200
+
+
+class TestResult:
+    """
+    GET /result/{token}: how the browser collects an Analysis that /analyze
+    only started (ADR 0016). The point of the split is that no request stays
+    open for the length of the pipeline, so one test holds the fake pipeline
+    on an Event and checks /analyze answered before it was released.
+    """
+
+    def test_unknown_token_is_404(self, client):
+        assert client.get("/result/never-started").status_code == 404
+
+    def test_analyze_answers_before_the_pipeline_finishes(
+        self, client, tmp_path, monkeypatch
+    ):
+        release = threading.Event()
+
+        def slow_pipeline(crop_bgr, face_count, face_index):
+            assert release.wait(5), "test never released the pipeline"
+            return _fake_pipeline_result(crop_bgr, face_count, face_index)
+
+        monkeypatch.setattr(api_main, "run_pipeline_from_crop", slow_pipeline)
+        _pending_upload(tmp_path, "t-slow")
+
+        started = client.post("/analyze", data={"token": "t-slow", "face_index": 0})
+        assert started.status_code == 202
+        running = client.get("/result/t-slow")
+        assert running.status_code == 202
+        assert running.json() == {"status": "running"}
+
+        release.set()
+        done = _wait_for_result(client, "t-slow")
+        assert done.status_code == 200
+        assert done.json()["final_verdict"] == "real"
+
+    def test_a_finished_result_can_be_read_again(self, client, tmp_path, monkeypatch):
+        """A poll whose response is lost must not lose the Analysis with it."""
+        monkeypatch.setattr(api_main, "run_pipeline_from_crop", _fake_pipeline_result)
+        _pending_upload(tmp_path, "t-twice")
+        client.post("/analyze", data={"token": "t-twice", "face_index": 0})
+
+        first = _wait_for_result(client, "t-twice")
+        second = client.get("/result/t-twice")
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json()
+
+    def test_a_pipeline_crash_is_a_500_and_still_deletes_the_upload(
+        self, client, tmp_path, monkeypatch
+    ):
+        def broken_pipeline(crop_bgr, face_count, face_index):
+            raise RuntimeError("CUDA out of memory")
+
+        monkeypatch.setattr(api_main, "run_pipeline_from_crop", broken_pipeline)
+        upload = _pending_upload(tmp_path, "t-crash")
+        client.post("/analyze", data={"token": "t-crash", "face_index": 0})
+
+        response = _wait_for_result(client, "t-crash")
+        assert response.status_code == 500
+        # The traceback stays in the server log; the visitor gets a sentence.
+        assert "CUDA" not in response.json()["detail"]
+        assert not os.path.exists(upload)
+
+
+class TestPublicLimits:
+    """Limits that only matter once the app is reachable from the internet."""
+
+    def test_a_full_queue_refuses_a_new_analysis_with_429(
+        self, client, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(api_main, "MAX_ACTIVE_ANALYSES", 2)
+        api_main._jobs["busy-1"] = {"status": "running"}
+        api_main._jobs["busy-2"] = {"status": "running"}
+        upload = _pending_upload(tmp_path, "t-refused")
+
+        response = client.post("/analyze", data={"token": "t-refused", "face_index": 0})
+
+        assert response.status_code == 429
+        # Refused, not spent: the same upload can be tried again later.
+        assert "t-refused" in api_main._pending
+        assert os.path.exists(upload)
+
+    def test_an_abandoned_upload_is_swept_after_its_ttl(self, tmp_path):
+        upload = _pending_upload(tmp_path, "t-abandoned")
+        path, faces, _ = api_main._pending["t-abandoned"]
+        api_main._pending["t-abandoned"] = (
+            path, faces, time.monotonic() - api_main.PENDING_TTL_SECONDS - 1,
+        )
+
+        api_main._sweep()
+
+        assert "t-abandoned" not in api_main._pending
+        assert not os.path.exists(upload)
+
+    def test_an_uncollected_result_expires_but_a_running_one_does_not(self):
+        api_main._jobs["t-old"] = {
+            "status": "done",
+            "result": {},
+            "finished": time.monotonic() - api_main.RESULT_TTL_SECONDS - 1,
+        }
+        api_main._jobs["t-running"] = {"status": "running"}
+
+        api_main._sweep()
+
+        assert "t-old" not in api_main._jobs
+        assert "t-running" in api_main._jobs
+
+    def test_an_oversized_upload_is_refused_before_detection(
+        self, client, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(api_main, "MAX_UPLOAD_BYTES", 10)
+        blank = _blank_jpeg(tmp_path)
+        with open(blank, "rb") as f:
+            response = client.post("/detect", files={"file": ("blank.jpg", f, "image/jpeg")})
+
+        assert response.status_code == 413
+        assert api_main._pending == {}
 
 
 class TestRecommendedFaceIndex:
