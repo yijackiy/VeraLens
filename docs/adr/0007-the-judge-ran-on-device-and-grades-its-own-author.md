@@ -1,6 +1,11 @@
 # The judge ran on-device, and grades its own author
 
-The default judge is Gemini 2.5 Flash, but no `GEMINI_API_KEY` is configured and
+**Status:** the Gemini re-run this ADR called for was done; see ADR 0014. The
+decision below describes what was true when step 4.4 first ran, when the
+planned default judge was Gemini 2.5 Flash (later replaced by 3.8 Flash). The
+local-judge numbers it covers are still reported, beside the Gemini ones.
+
+The default judge is Gemini 3.8 Flash, but no `GEMINI_API_KEY` is configured and
 the free tier's 250 calls/day is below the 372-explanation corpus in any case.
 With the deadline reached, step 4.4 ran under `JUDGE_PROVIDER=local`, which is
 the on-device fallback the judge interface was built for. That fallback reuses
@@ -14,7 +19,7 @@ explanations being graded.
   more favourably than an independent grader would. The reported mean score is
   therefore an optimistic bound, and the thesis must say so rather than
   presenting it as an independent assessment.
-- A 2B judge is also simply weaker at grading than the 2.5 Flash it stands in
+- A 2B judge is also simply weaker at grading than the 3.8 Flash it stands in
   for, so scores are noisier as well as biased.
 - Re-running under Gemini is a config change, not a rewrite — that is what the
   `IJudge` interface was for (ADR: step 4.4a). Scores are cached on

@@ -5,6 +5,7 @@ import uuid
 import cv2
 from PIL import Image
 
+from backend.app import progress
 from backend.app.preprocessing.face_pipeline import detect_face
 from backend.app.classifier.classifier import classify, unload_model
 from backend.app.classifier.gradcam import get_heatmap, unload_cam
@@ -35,7 +36,12 @@ def run_pipeline_from_crop(crop_bgr, face_count: int, face_index: int = 0) -> di
     """
     started = time.perf_counter()
 
+    # progress.report() says where this Analysis has got to, for the
+    # interface to ask about while /analyze blocks. It is a no-op when no
+    # request is tracking one, which is every call from an evaluation script.
+    progress.report("classifying")
     classifier_result = classify(crop_bgr)
+    progress.report("saliency")
     heatmap = get_heatmap(crop_bgr)
 
     os.makedirs(HEATMAP_DIR, exist_ok=True)
@@ -52,9 +58,9 @@ def run_pipeline_from_crop(crop_bgr, face_count: int, face_index: int = 0) -> di
     result["heatmap_url"] = f"/static/heatmaps/{heatmap_filename}"
     result["faces_found"] = face_count
     result["face_index"] = face_index
-    # Measured, not estimated. The interface cannot report progress while the
-    # pipeline runs (one blocking response), so the honest thing it can show
-    # afterwards is how long this particular photo actually took.
+    # Measured, not estimated. The stages above are reported as they happen
+    # (progress.py), but /analyze still answers once; this is how long this
+    # particular photo actually took, from the same clock.
     result["elapsed_seconds"] = round(time.perf_counter() - started, 1)
     return result
 

@@ -88,7 +88,7 @@ def score_one(judge, sample_id: str, explanation: str, signals,
         cached["cached"] = True
         return cached
 
-    spent = storage.calls_today()
+    spent = storage.calls_today(judge.name)
     if spent >= config.JUDGE_DAILY_QUOTA:
         raise QuotaExhausted(
             f"{spent} API calls in the last 24h, quota is "
@@ -166,5 +166,5 @@ def score_many(samples, judge=None) -> dict:
                   f"({scored} new, {cached} cached, {failed} failed)")
 
     result = {"new_calls": scored, "cache_hits": cached, "failures": failed}
-    result.update(storage.summary())
+    result.update(storage.summary(judge.name))
     return result

@@ -1,5 +1,5 @@
-// Same-origin by default: the dev server proxies /analyze, /health and /static
-// to the backend, and a production build is meant to be served alongside it.
+// Same-origin by default: the dev server proxies /detect, /analyze, /progress,
+// /health and /static to the backend, and a production build is meant to be served alongside it.
 // Set VITE_API_BASE only when the API genuinely lives somewhere else.
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -89,6 +89,25 @@ export async function analyzeFace(token, faceIndex, { signal } = {}) {
   form.append('token', token)
   form.append('face_index', String(faceIndex))
   return post('/analyze', { signal, body: form })
+}
+
+/**
+ * Where the Analysis for this token has got to — { stage, ... } while it runs,
+ * { stage: null } when the backend knows nothing of it. Asked while
+ * analyzeFace() is still waiting, which works because the backend answers it
+ * from a different thread than the one holding the graphics card.
+ *
+ * Best effort by design: any failure resolves to null. The POST is the source
+ * of truth for whether the analysis worked, and a missed poll must never turn
+ * a healthy wait into an error screen.
+ */
+export async function getProgress(token, { signal } = {}) {
+  try {
+    const response = await fetch(asset(`/progress/${encodeURIComponent(token)}`), { signal })
+    return response.ok ? await response.json() : null
+  } catch {
+    return null
+  }
 }
 
 /** Cheap liveness probe. Answers while an analysis is running. */
