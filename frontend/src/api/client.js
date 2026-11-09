@@ -1,5 +1,5 @@
-// Same-origin by default: the dev server proxies /detect, /analyze, /progress,
-// /health and /static to the backend, and a production build is meant to be served alongside it.
+// Same-origin by default: the dev server proxies /detect, /analyze, /result, /progress,
+// /health and /static to the backend, and in production FastAPI serves the built bundle itself.
 // Set VITE_API_BASE only when the API genuinely lives somewhere else.
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -78,17 +78,80 @@ export async function detectFaces(file, { signal } = {}) {
   return result
 }
 
+// How often analyzeFace() asks whether the Analysis has finished, and how many
+// polls in a row may fail (a dropped connection, the tunnel reconnecting)
+// before the wait is given up as 'unreachable'. One blip must not throw away a
+// three-minute Analysis that is still running on the server.
+export const RESULT_POLL_MS = 2000
+const MAX_POLL_FAILURES = 5
+
+function pause(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new AnalysisError('aborted', 'Analysis was cancelled.'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    if (signal?.aborted) abort()
+    else signal?.addEventListener('abort', abort, { once: true })
+  })
+}
+
 /**
  * Step 2 of 2. Takes the token detectFaces() returned and which face was
- * chosen, and waits for the slow half of the pipeline — classifier,
- * Grad-CAM and Qwen3-VL run in sequence on one GPU, so this blocks for
- * a minute at the median, ~3 at p90, and answers once, at the end.
+ * chosen, and resolves with the result of the slow half of the pipeline —
+ * classifier, Grad-CAM and Qwen3-VL in sequence on one GPU, a minute at the
+ * median and ~3 at p90.
+ *
+ * POST /analyze answers at once (202) and the Analysis runs on the server
+ * while this polls GET /result/{token} (ADR 0016). A single request held open
+ * that long is cut off at 100 s by Cloudflare's proxy. To callers nothing
+ * changed: one promise, the result or an AnalysisError.
  */
 export async function analyzeFace(token, faceIndex, { signal } = {}) {
   const form = new FormData()
   form.append('token', token)
   form.append('face_index', String(faceIndex))
-  return post('/analyze', { signal, body: form })
+  await post('/analyze', { signal, body: form })
+
+  let failures = 0
+  for (;;) {
+    await pause(RESULT_POLL_MS, signal)
+    let response
+    try {
+      response = await fetch(asset(`/result/${encodeURIComponent(token)}`), { signal })
+    } catch (cause) {
+      if (cause?.name === 'AbortError') {
+        throw new AnalysisError('aborted', 'Analysis was cancelled.', { cause })
+      }
+      response = null
+    }
+
+    if (response?.status === 202) {
+      failures = 0
+      continue
+    }
+    if (response?.ok) return response.json()
+
+    // No answer, or the proxy could not reach the backend: try again a few
+    // times before deciding the server is gone.
+    if (response === null || [502, 503, 504, 530].includes(response.status)) {
+      failures += 1
+      if (failures >= MAX_POLL_FAILURES) {
+        throw new AnalysisError('unreachable', 'VeraLens could not reach the analysis server.')
+      }
+      continue
+    }
+
+    const detail = await response.json().then((body) => body?.detail).catch(() => null)
+    throw new AnalysisError(
+      'server',
+      detail ? String(detail) : `The analysis server returned ${response.status}.`,
+    )
+  }
 }
 
 /**

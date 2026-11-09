@@ -13,6 +13,7 @@ export default defineConfig({
       '/detect': { target: 'http://localhost:8000', changeOrigin: true },
       '/analyze': { target: 'http://localhost:8000', changeOrigin: true },
       '/progress': { target: 'http://localhost:8000', changeOrigin: true },
+      '/result': { target: 'http://localhost:8000', changeOrigin: true },
       '/health': { target: 'http://localhost:8000', changeOrigin: true },
       '/static': { target: 'http://localhost:8000', changeOrigin: true },
     },

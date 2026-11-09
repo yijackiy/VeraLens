@@ -1,9 +1,10 @@
 """
 Where an Analysis has got to, for the interface to ask about while it waits.
 
-POST /analyze blocks and answers once, a minute at the median and nearer three
-at p90 (see ADR 0015), so a second short request is the only way to say more
-than "still going". This module is the memory that request reads.
+An Analysis takes a minute at the median and nearer three at p90 (see ADR
+0015). POST /analyze only starts it and GET /result/{token} only says when it
+is done (ADR 0016), so a second short request is the only way to say more than
+"still going". This module is the memory that request reads.
 
 It reports a stage and, inside the stage that dominates the wait, a count of
 tokens written. It does not report a fraction, an estimate or an ETA, on
@@ -14,9 +15,9 @@ Reporting is ambient rather than passed down as an argument. run_reasoning()
 and run_pipeline_from_crop() are also called by the evaluation scripts with no
 request around them, and the tests replace the pipeline with fakes of a fixed
 signature; a callback parameter threaded through three layers would break both
-for the sake of a progress bar. The /analyze handler runs in one threadpool
-thread from the first line to the last, so a ContextVar set there is visible
-to everything it calls, and invisible to a request on another thread.
+for the sake of a progress bar. Each Analysis runs on one background thread
+from the first line to the last (api/main.py, _run_analysis), so a ContextVar
+set there is visible to everything it calls, and invisible to any other.
 """
 
 import threading
@@ -37,7 +38,7 @@ _state: dict[str, dict] = {}
 def track(token: str):
     """Everything reported inside this block belongs to `token`, and is
     forgotten when the block ends, however it ends. Nothing outlives the
-    request, so an abandoned analysis leaves no entry to sweep."""
+    Analysis, so an abandoned one leaves no entry to sweep."""
     with _lock:
         _state[token] = {"stage": "queued", "started": time.monotonic()}
     marker = _current.set(token)
