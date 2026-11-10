@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AnalysisError, analyzeFace, RESULT_POLL_MS } from './client'
+import { AnalysisError, analyzeFace, MAX_POLL_FAILURES, RESULT_POLL_MS } from './client'
 
 /**
  * analyzeFace() starts an Analysis and polls GET /result/{token} until it has
@@ -35,7 +35,7 @@ async function settle(promise) {
     (value) => ({ value }),
     (error) => ({ error }),
   )
-  for (let i = 0; i < 50; i += 1) await vi.advanceTimersByTimeAsync(RESULT_POLL_MS)
+  for (let i = 0; i < MAX_POLL_FAILURES + 20; i += 1) await vi.advanceTimersByTimeAsync(RESULT_POLL_MS)
   return outcome
 }
 
@@ -73,9 +73,9 @@ describe('analyzeFace', () => {
     expect(value).toEqual({ final_verdict: 'real' })
   })
 
-  it('is unreachable after five failed polls in a row', async () => {
+  it('is unreachable once MAX_POLL_FAILURES polls in a row have failed', async () => {
     const down = () => Promise.reject(new TypeError('Failed to fetch'))
-    scriptFetch(down, down, down, down, down)
+    scriptFetch(...Array.from({ length: MAX_POLL_FAILURES }, () => down))
 
     const { error } = await settle(analyzeFace('t', 0))
 

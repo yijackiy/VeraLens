@@ -81,9 +81,13 @@ export async function detectFaces(file, { signal } = {}) {
 // How often analyzeFace() asks whether the Analysis has finished, and how many
 // polls in a row may fail (a dropped connection, the tunnel reconnecting)
 // before the wait is given up as 'unreachable'. One blip must not throw away a
-// three-minute Analysis that is still running on the server.
+// three-minute Analysis that is still running on the server. Thirty polls is
+// a minute or more: the first live run over a quick tunnel saw its QUIC
+// connection drop for 9 s and come back, which five polls barely covered. The
+// server keeps a finished result for 10 minutes, so waiting longer costs
+// nothing but a slower error when the laptop really is gone.
 export const RESULT_POLL_MS = 2000
-const MAX_POLL_FAILURES = 5
+export const MAX_POLL_FAILURES = 30
 
 function pause(ms, signal) {
   return new Promise((resolve, reject) => {
