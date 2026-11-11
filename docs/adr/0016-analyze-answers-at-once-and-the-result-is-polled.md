@@ -28,7 +28,10 @@ another spends its first minute waiting for `_gpu_lock`.
   or whose result has expired. A finished result can be read again for 10
   minutes, so a poll whose response is lost does not lose the Analysis.
 - `analyzeFace()` in `frontend/src/api/client.js` polls `/result` every 2 s.
-  It gives up as `unreachable` only after five polls in a row have failed.
+  It gives up as `unreachable` only after 30 polls in a row have failed, a
+  minute or more. The first live run over a quick tunnel saw its QUIC
+  connection drop for 9 s and reconnect, which an earlier limit of five
+  polls only barely survived.
   Callers still get one promise resolving to the same result object, so
   `App.jsx`, `useBatch.js` and their tests did not change.
 - `/progress/{token}` is unchanged. `progress.track()` now runs on the

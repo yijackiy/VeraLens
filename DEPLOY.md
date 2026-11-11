@@ -21,6 +21,11 @@ ADR 0016 (Cloudflare cuts off any request that runs past 100 s).
    winget install --id Cloudflare.cloudflared
    ```
 
+   Without winget, download `cloudflared-windows-amd64.exe` from
+   <https://github.com/cloudflare/cloudflared/releases/latest>, save it as
+   `cloudflared.exe` outside the repo, and check that
+   `Get-AuthenticodeSignature` reports *Valid* for *Cloudflare, Inc.*
+
 2. **Build the frontend.** Rebuild after every frontend change.
 
    ```powershell
@@ -51,8 +56,12 @@ Open <http://localhost:8000> and check that the app loads before going on.
 ### Option A: quick tunnel (no domain, no account)
 
 ```powershell
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel --no-autoupdate --protocol http2 --url http://localhost:8000
 ```
+
+`--protocol http2` runs the tunnel over TCP. The default, QUIC, runs over UDP;
+on the first live run it dropped for 9 s on home Wi-Fi with *no recent network
+activity*. The tunnel reconnects either way, but TCP drops less often.
 
 It prints a `https://<random-words>.trycloudflare.com` URL; share that.
 The URL changes every time you run it, and anyone who has it can use the app.
