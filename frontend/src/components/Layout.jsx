@@ -93,9 +93,9 @@ function Footer({ width }) {
           <span className="label-caps text-ink-muted">Bachelor thesis project · 2026</span>
         </div>
         <p className="m-0 max-w-[620px] text-body-sm text-ink-muted md:text-right">
-          Classifier: 97.5% accuracy, 99.7% AUC on a leakage‑free validation split of 2,799
-          images. Not measured on camera photos; the reasoning layer is not claimed to improve
-          detection.
+          VeraLens can make mistakes. It was 97.5% accurate on 2,799 test faces but hasn’t been
+          tested on everyday photos. The text explains the result. It does not make the result
+          more reliable. Treat every verdict as a second opinion, not proof.
         </p>
       </div>
     </footer>

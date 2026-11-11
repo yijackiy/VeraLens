@@ -13,8 +13,8 @@ leave both.
 ## 1. System overview
 
 The inference path is entirely local. The judge is drawn deliberately **outside** it: it
-never runs while a request is being served (ADR 0007, and the "evaluation-only" rule in
-CLAUDE.md).
+never runs while a request is being served (ADR 0007, and the project rule that the judge
+is evaluation-only).
 
 ```mermaid
 flowchart TB
