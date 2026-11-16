@@ -13,8 +13,6 @@ No external API is called while serving a request.
 
 ![Detection Metrics on the Leakage-Free Subset](results/roc_curve.png)
 
-<!-- TODO: add app screenshots/GIFs under docs/demo/ (upload → face picker → verdict). -->
-
 > **VeraLens can make mistakes.** It was 97.5% accurate on 2,799 test faces but hasn't been
 > tested on everyday photos. The explanation does not make the result more reliable.
 
@@ -23,21 +21,39 @@ explainability pipeline**, not the visual backbone.
 
 ## Features
 
+![Screen flow of the frontend application](docs/figures/fig04-screen-flow.png)
+
+*Screen flow of the frontend: upload, face picker, waiting screen, Verdict, Compare and Batch.*
+
 * **Upload or camera**: submit a photo from a file or take one with the camera.
+
+  ![Upload screen of the running application](docs/figures/fig07-upload-screen.png)
 * **Face picker**: when a photo has several faces, InsightFace finds them all and you pick
   one. Choosing costs nothing, because nothing has been analysed yet (ADR 0012).
+
+  ![Face picker for a photograph with three faces](docs/figures/fig08-face-picker.png)
 * **Crop and rotate**: straighten a sideways or small face before sending it.
 * **Saliency Map**: a Grad-CAM overlay shows which regions drove the classifier.
+
+  ![Verdict screen in the Plain register for a fake face from the dataset](docs/figures/fig09-verdict-plain.png)
 * **Plain or Technical explanation**: Plain is what the reasoning layer said in its own
   words; Technical shows every measurement behind the Verdict (ADR 0010).
+
+  ![Plain register (left) and Technical register (right) of the same Analysis](docs/figures/fig10-plain-vs-technical.png)
 * **Draws**: the reasoning layer samples, so you can ask it again and see how much the
   explanation changes. The Verdict stays the one from the first Draw (ADR 0013).
 * **Compare two**: hold one Analysis and read a second next to it on one shared scale.
+
+  ![Comparison screen with a fake face (A) and a real face (B) on one scale](docs/figures/fig11-compare.png)
 * **Batch**: up to 20 photos, analysed one at a time, with a CSV export. A Batch is a
   queue, not an accuracy measurement.
+
+  ![Results screen of a Batch of six photographs](docs/figures/fig12-batch-results.png)
 * **Step-by-step progress**: the waiting screen shows which step is running, not a fake
   percentage (ADR 0015).
 * **Phone layout and dark theme.**
+
+  ![Verdict screen in the light theme (left) and the dark theme (right)](docs/figures/fig13-light-dark-theme.png)
 
 ## Quick Start
 
@@ -144,21 +160,31 @@ The reasoning layer **does not make detection more accurate**. It makes the Verd
 | AUC-ROC | 0.9973 |
 | Macro F1 | 0.9750 |
 
+| Confusion matrix (Leakage-Free Subset, n = 2,799) | ROC curve (full validation split) |
+|---|---|
+| ![Confusion matrix of the classifier on the Leakage-Free Subset](docs/figures/fig14-confusion-matrix.png) | ![ROC curve of the classifier on the full validation split](docs/figures/fig15-roc-curve.png) |
+
 * **Detection: no significant gain.** The three-arm ablation (400 images, reasoning layer
   run blind) gives Vision-Only 0.9775, LLM-Only 0.6625, Fused 0.9825. The fused gain rests
   on four discordant images (McNemar exact p = 0.6250), and AUC moves the other way. Fusion
   is not claimed to improve detection (ADR 0005).
+
+  ![Accuracy and AUC of the Ablation Arms, and LLM-Only accuracy by true class](docs/figures/fig16-ablation.png)
 * **Explanation Quality: a real gain.** When the reasoning layer is told what the classifier
   found, in words rather than as a number (ADR 0008), it explains fakes significantly
   better: +0.91 judge points on the local judge (sign test p = 0.0015), and +0.68 on the
   independent Gemini 3.8 Flash judge (p < 0.0001, ADR 0014). This is the thesis's actual
   claim.
 
+  ![Share of explanations that name each prompted forensic signal](docs/figures/fig17-signal-share.png)
+
 The two judges are reported separately and never pooled: the local judge grades its own
 author, so cite it as an optimistic bound (ADR 0007). Full tables and limitations:
 [`results/RESULTS.md`](results/RESULTS.md).
 
 ## How it works (high level)
+
+![Overall architecture of VeraLens](docs/figures/fig01-architecture.png)
 
 ```
 Submitted Photo
@@ -173,15 +199,21 @@ Submitted Photo
      browser polls GET /progress (1 s) and GET /result (2 s) until done
 ```
 
+![Sequence of one Analysis across the two API requests](docs/figures/fig02-analysis-sequence.png)
+
 1. **Detect**: InsightFace finds every Face Candidate. You pick one, and it becomes the
    224×224 Face Crop, the only input the classifier ever sees.
 2. **Classify**: EfficientNet-B4 gives a Fake Probability, and Grad-CAM draws the Saliency
    Map. Both are then unloaded, because the two models **never fit on the GPU together**.
+
+   ![GPU residency during one Analysis: the two models are never loaded together](docs/figures/fig03-gpu-residency.png)
 3. **Explain**: Qwen3-VL-2B reads the Face Crop and the classifier's Verdict, stated in
    words, and returns structured JSON with signals and an explanation.
 4. **Fuse**: `0.55 · vision + 0.45 · llm`. If the reply can't be parsed, the classifier's
    result is used alone and `explanation_available` is `false`. It never falls back to a
    0.0 that would read as "certainly real".
+
+   ![Decision logic of the fusion layer](docs/figures/fig06-fusion-logic.png)
 
 One Analysis runs at a time (`threading.Lock`). It takes **60 s at the median**, 40 s at
 the floor and 169 s at p90 (n=600, `results/ablation_records*.jsonl`).
